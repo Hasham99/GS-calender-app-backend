@@ -1,50 +1,44 @@
 import jwt from "jsonwebtoken";
-import { apiError } from "../utils/apiError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { apiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
-import { apiResponse } from "../utils/apiResponse.js";
 
 export const verifyJWT = asyncHandler(async (req, _, next) => {
     try {
-        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+        const token =
+            req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
         if (!token) {
-            throw new apiError(401, "UnAuthorized Request")
+            throw new apiError(401, "Unauthorized Request");
         }
+
         const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-        // throw new apiResponse(200, decodedToken)
-        // const user = await User.findById(decodedToken?._id).select("-password")
-        // if (!user) {
-        //     throw new apiError(401, "Invalid Access Token")
-        // }
-        // req.user = user;
-        req.user = decodedToken;
-        // console.log(`${decodedToken} re.user`);
-        next()
-    } catch (error) {
-        throw new apiError(401, error?.message || "Invalid AccessToken")
-    }
-})
+        const user = await User.findById(decodedToken.id).select("-password");
 
-//is Admin
-
-export const isAdminController = asyncHandler(async (req, res, next) => {
-    try {
-        // console.log(req.user);
-        const user = await User.findById(req.user.id)
-        // console.log(user);
-        if (user.role !== 1) {
-            console.log("UnAuthorized Access");
-            return res
-                .status(401)
-                .json(
-                    new apiError(401, "UnAuthorized Access")
-                )
-        }
-        else {
-            next();
+        if (!user) {
+            throw new apiError(401, "Invalid Access Token");
         }
 
+        req.user = user;
+        next();
     } catch (error) {
-        throw new apiError(500, error?.message || "Error in Admin Middleware")
+        throw new apiError(401, error?.message || "Invalid Access Token");
     }
-})
+});
+// Ensure the user has the "admin" role
+export const isAdminController = async (req, res, next) => {
+    const user = await User.findById(req.user.id);
+
+    if (!user || user.role !== "admin") {
+        return next(new apiError(403, "Forbidden. Only admins can access this route"));
+    }
+
+    next();  // Allow the request to proceed if the user is an admin
+};
+export const authorizeRoles = (...allowedRoles) => {
+    return asyncHandler(async (req, res, next) => {
+        if (!req.user || !allowedRoles.includes(req.user.role)) {
+            throw new apiError(403, "Access Denied");
+        }
+        next();
+    });
+};
