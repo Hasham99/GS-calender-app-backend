@@ -1,6 +1,6 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiResponse } from "../utils/apiResponse.js";
-import { Facility } from "../models/Facility.model.js";
+import { Facility } from "../models/facility.model.js";
 import { apiError } from "../utils/apiError.js";
 
 // Get all facilities
