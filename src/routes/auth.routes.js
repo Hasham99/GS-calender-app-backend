@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerController, loginController, testController, ForgotPasswordController, addAdminController } from "../controllers/auth.controller.js";
+import { registerController, loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -10,6 +10,10 @@ router.route("/add-admin").post(addAdminController);  // Only accessible to auth
 // Public Routes
 router.route("/login").post(loginController);
 router.route("/forgot-password").post(ForgotPasswordController);
+router.route("/users/:role").get(getAllUsersByRoleController);
+router.route("/users").get(getAllUsersController);
+
+
 
 // Admin-only Route for Registration
 router.route("/register").post(verifyJWT, authorizeRoles("admin"), registerController);

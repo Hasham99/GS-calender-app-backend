@@ -12,6 +12,23 @@ const generateToken = (userId) => {
     });
 };
 
+export const getAllUsersByRoleController = asyncHandler(async (req, res) => {
+    // params userType get from url
+    const { role } = req.params;
+
+    // get users having role user
+    const users = await User.find({ role }).select("-password");
+
+    res.status(200).json(new apiResponse(200, users, "All users fetched successfully"));
+})
+export const getAllUsersController = asyncHandler(async (req, res) => {
+
+    // get all users 
+    const users = await User.find().select("-password");
+
+    res.status(200).json(new apiResponse(200, users, "All users fetched successfully"));
+})
+
 // Controller for adding a new admin (temporary route without authentication)
 export const addAdminController = asyncHandler(async (req, res) => {
     const { name, email, password, role } = req.body;

@@ -3,6 +3,7 @@ import { Facility } from "../models/facility.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
+import { User } from "../models/user.model.js";
 
 // Get all bookings
 const getBookingsControllerPer = asyncHandler(async (req, res) => {
@@ -145,6 +146,12 @@ const createBookingController = asyncHandler(async (req, res) => {
         throw new apiError(400, "Facility not found");
     }
 
+    // Check if the User exists
+    const userExists = await User.findById(user);
+    if (!userExists) {
+        throw new apiError(400, "user not found");
+    }
+
     // Convert dates to Date objects
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(endDate);
@@ -179,8 +186,11 @@ const createBookingController = asyncHandler(async (req, res) => {
     io.emit("booking_created", newBooking);
     console.log("New booking created and emitted:", newBooking);
 
+    // Respond to the client// Populate both user and facility fields
+    const populatedBooking = await Booking.findById(newBooking._id)
+        .populate([{ path: 'facility', select: 'name description' }, { path: 'user', select: 'name email' }]);
     // Respond to the client
-    return res.status(201).json(new apiResponse(201, newBooking, "Booking created successfully"));
+    return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });
 
 
@@ -188,8 +198,8 @@ const createBookingController = asyncHandler(async (req, res) => {
 const getBookingsController = asyncHandler(async (req, res) => {
     const io = req.app.get("io"); // Access the Socket.IO instance
 
-    // Fetch all bookings
-    const bookings = await Booking.find().populate("user").exec();
+    // Fetch all bookings including userdata and facilitydata
+    const bookings = await Booking.find().populate("user", "_id name email role").populate("facility", "name description");
 
     // Emit the bookings to all connected clients
     io.emit("bookings_list", bookings);
