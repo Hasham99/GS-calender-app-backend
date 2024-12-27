@@ -181,14 +181,16 @@ const createBookingController = asyncHandler(async (req, res) => {
 
     await newBooking.save();
 
-    // Emit the new booking event to all clients
-    const io = req.app.get("io");
-    io.emit("booking_created", newBooking);
-    console.log("New booking created and emitted:", newBooking);
-
     // Respond to the client// Populate both user and facility fields
     const populatedBooking = await Booking.findById(newBooking._id)
-        .populate([{ path: 'facility', select: 'name description' }, { path: 'user', select: 'name email' }]);
+        .populate([{ path: 'facility', select: 'name description' }, { path: 'user', select: 'name email role' }]);
+
+
+    // Emit the new booking event to all clients
+    const io = req.app.get("io");
+    io.emit("booking_created", populatedBooking);
+    console.log("New booking created and emitted:", populatedBooking);
+
     // Respond to the client
     return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });
