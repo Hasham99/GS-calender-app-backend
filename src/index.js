@@ -64,7 +64,7 @@ connectDb()
 
 
 // Schedule the cleanup to run every minute (adjust timing as needed)
-cron.schedule("*/5 * * * *", async () => {
+cron.schedule("*/1 * * * *", async () => {
     console.log("Running scheduled job: autoCleanUpBookings...");
     await autoCleanUpBookings();
 });
