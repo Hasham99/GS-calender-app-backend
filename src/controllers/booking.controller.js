@@ -5,6 +5,7 @@ import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
 import { BookingHistory } from "../models/bookingHistory.model.js";
+import moment from "moment-timezone";
 
 // Get all bookings
 const getBookingsControllerPer = asyncHandler(async (req, res) => {
@@ -92,25 +93,30 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
 
 const autoCleanUpBookings = async () => {
     try {
-        // Current time
-        const now = new Date();
+        // Get the current time in PKT
+        const now = moment().tz("Asia/Karachi");
 
-        // Fetch expired bookings
-        const expiredBookings = await Booking.find({ endDate: { $lte: now } });
+        console.log("Running cleanup job at (Karachi Time):", now.format("YYYY-MM-DD HH:mm:ss"));
+
+        // Fetch expired bookings where endDate <= now
+        const expiredBookings = await Booking.find({ endDate: { $lte: now.toDate() } });
 
         if (expiredBookings.length === 0) {
             console.log("No expired bookings found.");
             return;
         }
 
+        console.log(`Found ${expiredBookings.length} expired bookings.`);
+
         // Move expired bookings to BookingHistory
         const bookingHistories = expiredBookings.map((booking) => ({
             ...booking.toObject(),
-            deletedAt: now,
+            deletedAt: now.toDate(),
         }));
+
         await BookingHistory.insertMany(bookingHistories);
 
-        // Delete expired bookings
+        // Delete expired bookings from the Booking collection
         const bookingIds = expiredBookings.map((booking) => booking._id);
         await Booking.deleteMany({ _id: { $in: bookingIds } });
 
