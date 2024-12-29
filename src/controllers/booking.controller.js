@@ -42,8 +42,12 @@ const createBookingController = asyncHandler(async (req, res) => {
         throw new apiError(400, "user not found");
     }
     // Convert start and end dates to Asia/Karachi time and then to UTC before saving
-    const startDateObj = moment.tz(startDate, "Asia/Karachi").utc().toDate();
-    const endDateObj = moment.tz(endDate, "Asia/Karachi").utc().toDate();
+    // const startDateObj = moment.tz(startDate, "Asia/Karachi").utc().toDate();
+    // const endDateObj = moment.tz(endDate, "Asia/Karachi").utc().toDate();
+
+    // Convert dates to Date objects
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
 
     // Check for conflicting bookings
     const existingBookingConflict = await Booking.findOne({
@@ -92,13 +96,17 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
 
 const autoCleanUpBookings = async () => {
     try {
-        // Get the current time in PKT
+        // Get the current time in Asia/Karachi
         const now = moment().tz("Asia/Karachi");
 
         console.log("Running cleanup job at (Karachi Time):", now.format("YYYY-MM-DD HH:mm:ss"));
+        console.log("Running cleanup job at (Karachi Time):", now);
 
         // Fetch expired bookings where endDate <= now
-        const expiredBookings = await Booking.find({ endDate: { $lte: now.toDate() } });
+        const expiredBookings = await Booking.find({
+            endDate: { $lte: now.toDate },
+            // Compare endDate with Karachi time (converted to Date)
+        });
 
         if (expiredBookings.length === 0) {
             console.log("No expired bookings found.");
@@ -124,6 +132,7 @@ const autoCleanUpBookings = async () => {
         console.error("Error during booking cleanup:", error);
     }
 };
+
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
     // Fetch all booking history``
