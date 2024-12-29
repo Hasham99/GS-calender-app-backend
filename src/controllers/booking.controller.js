@@ -96,7 +96,7 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
 
 const autoCleanUpBookings = async () => {
     try {
-        // Get the current time in Asia/Karachi timezone
+        // Get the current time in Karachi timezone
         const nowKarachi = moment().tz("Asia/Karachi");
 
         console.log("Running cleanup job at (Karachi Time):", nowKarachi.format("YYYY-MM-DD HH:mm:ss"));
@@ -106,10 +106,12 @@ const autoCleanUpBookings = async () => {
 
         // Loop through each booking and check if it should be deleted
         for (const booking of bookings) {
-            // Convert the endDate to Karachi time
+            // Convert the booking's endDate to Karachi time
             const endDateKarachi = moment(booking.endDate).tz("Asia/Karachi");
 
-            // Check if the endDate has passed or matches the current time
+            // Check if the endDate has passed or matches the current Karachi time
+            console.log(`Checking booking ID: ${booking._id}, End Date (Karachi): ${endDateKarachi.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
+
             if (endDateKarachi.isSameOrBefore(nowKarachi)) {
                 console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`);
 
@@ -132,6 +134,7 @@ const autoCleanUpBookings = async () => {
         console.error("Error during booking cleanup:", error);
     }
 };
+
 
 
 
