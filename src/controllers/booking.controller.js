@@ -97,44 +97,42 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
 const autoCleanUpBookings = async () => {
     try {
         // Get the current time in Asia/Karachi timezone
-        const now = moment().tz("Asia/Karachi");
+        const nowKarachi = moment().tz("Asia/Karachi");
 
-        console.log("Running cleanup job at (Karachi Time):", now.format("YYYY-MM-DD HH:mm:ss"));
+        console.log("Running cleanup job at (Karachi Time):", nowKarachi.format("YYYY-MM-DD HH:mm:ss"));
 
-        // Fetch expired bookings where endDate <= now
-        const expiredBookings = await Booking.find({});
+        // Fetch all bookings from the database
+        const bookings = await Booking.find({});
 
-        // Filter out the bookings whose endDate (converted to Karachi time) has passed
-        const expiredBookingsFiltered = expiredBookings.filter((booking) => {
+        // Loop through each booking and check if it should be deleted
+        for (const booking of bookings) {
+            // Convert the endDate to Karachi time
             const endDateKarachi = moment(booking.endDate).tz("Asia/Karachi");
-            console.log(`Booking ID: ${booking._id} - EndDate in Karachi: ${endDateKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
-            return endDateKarachi.isBefore(now);
-        });
 
-        if (expiredBookingsFiltered.length === 0) {
-            console.log("No expired bookings found.");
-            return;
+            // Check if the endDate has passed or matches the current time
+            if (endDateKarachi.isSameOrBefore(nowKarachi)) {
+                console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`);
+
+                // Move expired booking to history
+                const bookingHistory = new BookingHistory({
+                    ...booking.toObject(),
+                    deletedAt: nowKarachi.toDate(),
+                });
+
+                // Save to history
+                await bookingHistory.save();
+
+                // Delete the booking from the main collection
+                await Booking.deleteOne({ _id: booking._id });
+
+                console.log(`Booking ID: ${booking._id} has been deleted.`);
+            }
         }
-
-        console.log(`Found ${expiredBookingsFiltered.length} expired bookings.`);
-
-        // Move expired bookings to BookingHistory
-        const bookingHistories = expiredBookingsFiltered.map((booking) => ({
-            ...booking.toObject(),
-            deletedAt: now.toDate(),
-        }));
-
-        await BookingHistory.insertMany(bookingHistories);
-
-        // Delete expired bookings from the Booking collection
-        const bookingIds = expiredBookingsFiltered.map((booking) => booking._id);
-        await Booking.deleteMany({ _id: { $in: bookingIds } });
-
-        console.log(`Moved ${expiredBookingsFiltered.length} bookings to history and deleted them.`);
     } catch (error) {
         console.error("Error during booking cleanup:", error);
     }
 };
+
 
 
 
