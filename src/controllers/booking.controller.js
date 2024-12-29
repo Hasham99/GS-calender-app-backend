@@ -107,7 +107,7 @@ const autoCleanUpBookings = async () => {
         // Loop through each booking and check if it should be deleted
         for (const booking of bookings) {
             // Convert the booking's endDate to Karachi time
-            const endDateKarachi = moment(booking.endDate).tz("Asia/Karachi");
+            const endDateKarachi = booking.endDate;
 
             // Check if the endDate has passed or matches the current Karachi time
             console.log(`Checking booking ID: ${booking._id}, End Date (Karachi): ${endDateKarachi.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
