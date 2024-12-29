@@ -100,12 +100,10 @@ const autoCleanUpBookings = async () => {
         const now = moment().tz("Asia/Karachi");
 
         console.log("Running cleanup job at (Karachi Time):", now.format("YYYY-MM-DD HH:mm:ss"));
-        console.log("Running cleanup job at (Karachi Time):", now);
 
         // Fetch expired bookings where endDate <= now
         const expiredBookings = await Booking.find({
-            endDate: { $lte: now.toDate() },
-            // Compare endDate with Karachi time (converted to Date)
+            endDate: { $lte: now.toDate() }, // Compare endDate with Karachi time (converted to Date)
         });
 
         if (expiredBookings.length === 0) {
@@ -114,6 +112,12 @@ const autoCleanUpBookings = async () => {
         }
 
         console.log(`Found ${expiredBookings.length} expired bookings.`);
+
+        // Debugging the expired bookings and their endDate
+        expiredBookings.forEach((booking) => {
+            console.log(`Booking ID: ${booking._id} - EndDate: ${booking.endDate}`);
+            console.log(`Now: ${now.format("YYYY-MM-DD HH:mm:ss")}`);
+        });
 
         // Move expired bookings to BookingHistory
         const bookingHistories = expiredBookings.map((booking) => ({
@@ -132,6 +136,7 @@ const autoCleanUpBookings = async () => {
         console.error("Error during booking cleanup:", error);
     }
 };
+
 
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
