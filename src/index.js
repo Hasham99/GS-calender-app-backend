@@ -5,6 +5,9 @@ import colors from "colors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { Booking } from "./models/booking.model.js";
+import cron from "node-cron";
+import { autoCleanUpBookings } from "./controllers/booking.controller.js";
+
 
 // Load environment variables
 dotenv.config({
@@ -58,3 +61,10 @@ connectDb()
     .catch((error) => {
         console.error(`DB connection error: ${error}`.red);
     });
+
+
+// Schedule the cleanup to run every minute (adjust timing as needed)
+cron.schedule("*/5 * * * *", async () => {
+    console.log("Running scheduled job: autoCleanUpBookings...");
+    await autoCleanUpBookings();
+});
