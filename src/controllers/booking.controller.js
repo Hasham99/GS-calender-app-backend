@@ -106,13 +106,13 @@ const autoCleanUpBookings = async () => {
 
         // Loop through each booking and check if it should be deleted
         for (const booking of bookings) {
-            // Convert the booking's endDate to Karachi time
-            const endDateKarachi = booking.endDate;
+            // Get the booking's endDate (from the database, no manipulation needed)
+            const endDate = moment(booking.endDate); // Just use the stored endDate
 
-            // Check if the endDate has passed or matches the current Karachi time
-            console.log(`Checking booking ID: ${booking._id}, End Date (Karachi): ${endDateKarachi.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
+            // Check if the endDate is same or before the current Karachi time
+            console.log(`Checking booking ID: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
 
-            if (endDateKarachi.isSameOrBefore(nowKarachi)) {
+            if (endDate.isSameOrBefore(nowKarachi)) {
                 console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`);
 
                 // Move expired booking to history
@@ -134,10 +134,6 @@ const autoCleanUpBookings = async () => {
         console.error("Error during booking cleanup:", error);
     }
 };
-
-
-
-
 
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
