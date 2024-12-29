@@ -109,10 +109,15 @@ const autoCleanUpBookings = async () => {
             // Get the booking's endDate (from the database, no manipulation needed)
             const endDate = moment(booking.endDate); // Just use the stored endDate
 
+            // Convert endDate to Karachi time for comparison
+            const endDateKarachi = endDate.tz('Asia/Karachi');
+
             // Check if the endDate is same or before the current Karachi time
             console.log(`Checking booking ID: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
 
-            if (endDate.isSameOrBefore(nowKarachi)) {
+            console.log(`Checking booking ID: ${booking._id}, End Date: ${endDateKarachi.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
+
+            if (endDateKarachi.isSameOrBefore(nowKarachi)) {
                 console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`);
 
                 // Move expired booking to history
