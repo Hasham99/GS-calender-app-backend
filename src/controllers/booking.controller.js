@@ -41,10 +41,9 @@ const createBookingController = asyncHandler(async (req, res) => {
     if (!userExists) {
         throw new apiError(400, "user not found");
     }
-
-    // Convert dates to Date objects
-    const startDateObj = new Date(startDate);
-    const endDateObj = new Date(endDate);
+    // Convert start and end dates to Asia/Karachi time and then to UTC before saving
+    const startDateObj = moment.tz(startDate, "Asia/Karachi").utc().toDate();
+    const endDateObj = moment.tz(endDate, "Asia/Karachi").utc().toDate();
 
     // Check for conflicting bookings
     const existingBookingConflict = await Booking.findOne({
@@ -127,7 +126,7 @@ const autoCleanUpBookings = async () => {
 };
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
-    // Fetch all booking history
+    // Fetch all booking history``
     const bookingHistory = await BookingHistory.find()
         .populate([{ path: "facility", select: "name description" }, { path: "user", select: "name email role" }])
         .sort({ deletedAt: -1 }); // Sort by the most recently deleted
