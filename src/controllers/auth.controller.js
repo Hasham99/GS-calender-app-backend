@@ -122,7 +122,7 @@ export const loginController = asyncHandler(async (req, res) => {
         throw new apiError(401, "Invalid email or password");
     }
 
-    console.log("User found:", user);  // Log the user object (excluding password)
+    console.log("User found:", user._id);  // Log the user object (excluding password)
 
     // Compare the password entered during login (plain text) with the stored hashed password
     const matchPassword = await comparePassword(password, user.password);
@@ -131,7 +131,7 @@ export const loginController = asyncHandler(async (req, res) => {
         throw new apiError(401, "Invalid email or password");
     }
 
-    console.log("Password match successful");
+    console.log("Password match successful".bgGreen.black);  // Log the successful match
 
     // Generate JWT token for the user
     const token = generateToken(user._id);

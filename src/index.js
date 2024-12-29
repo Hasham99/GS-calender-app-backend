@@ -1,7 +1,7 @@
 import { app } from "./app.js";
 import dotenv from "dotenv";
 import connectDb from "./db/index.js";
-import colors from "colors";
+import "colors";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import { Booking } from "./models/booking.model.js";
@@ -64,7 +64,7 @@ connectDb()
 
 
 // Schedule the cleanup to run every minute (adjust timing as needed)
-cron.schedule("*/1 * * * *", async () => {
-    console.log("Running scheduled job: autoCleanUpBookings...");
+cron.schedule("*/5 * * * *", async () => {
+    console.log("Running scheduled job: autoCleanUpBookings...".bgRed.white);
     await autoCleanUpBookings();
 });

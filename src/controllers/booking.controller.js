@@ -6,7 +6,10 @@ import { apiError } from "../utils/apiError.js";
 import { User } from "../models/user.model.js";
 import { BookingHistory } from "../models/bookingHistory.model.js";
 import moment from "moment-timezone";
+import colors from "colors";
 
+
+colors.enable();
 // Get all bookings
 const getBookingsControllerPer = asyncHandler(async (req, res) => {
     const bookings = await Booking.find().populate("user", "name email").populate("facility", "name description"); // Populate user and facility details
@@ -18,7 +21,8 @@ const createBookingController = asyncHandler(async (req, res) => {
     const { facility, user, startDate, endDate, conditionsAccepted } = req.body;
 
     // Debugging incoming data
-    console.log("Incoming booking request:", req.body);
+    // console.log("Incoming booking request:", req.body);
+    console.log("Incoming booking request:");
 
     // Validate required fields
     if (!facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
@@ -59,7 +63,8 @@ const createBookingController = asyncHandler(async (req, res) => {
     });
 
     if (existingBookingConflict) {
-        console.error("Booking conflict found:", existingBookingConflict);
+        // console.error("Booking conflict found:", existingBookingConflict);
+        console.error("Booking conflict found:".bgRed.white);
         throw new apiError(400, "Booking already exists for this facility at the given time");
     }
 
@@ -82,7 +87,7 @@ const createBookingController = asyncHandler(async (req, res) => {
     // Emit the new booking event to all clients
     const io = req.app.get("io");
     io.emit("booking_created", populatedBooking);
-    console.log("New booking created and emitted:", populatedBooking);
+    console.log("New booking created and emitted:".bgGreen.white, populatedBooking._id);
 
     // Respond to the client
     return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
@@ -99,7 +104,7 @@ const autoCleanUpBookings = async () => {
         // Get the current time in Karachi timezone
         const nowKarachi = moment().tz("Asia/Karachi");
 
-        console.log("Running cleanup job at (Karachi Time):", nowKarachi.format("YYYY-MM-DD HH:mm:ss"));
+        console.log(`Running cleanup job at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.white);
 
         // Fetch all bookings from the database
         const bookings = await Booking.find({});
@@ -110,10 +115,12 @@ const autoCleanUpBookings = async () => {
             const endDate = moment(booking.endDate); // Just use the stored endDate
 
             // Check if the endDate is same or before the current Karachi time
-            console.log(`Checking booking ID endDate: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`);
+            console.log(`Checking booking ID endDate: ${booking._id}`.bgWhite.black);
+            // Check if the endDate is same or before the current Karachi time
+            // console.log(`Checking booking ID endDate: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgWhite.black);
 
             if (endDate.isSameOrBefore(nowKarachi)) {
-                console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`);
+                console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`.yellow);
 
                 // Move expired booking to history
                 const bookingHistory = new BookingHistory({
@@ -127,7 +134,7 @@ const autoCleanUpBookings = async () => {
                 // Delete the booking from the main collection
                 await Booking.deleteOne({ _id: booking._id });
 
-                console.log(`Booking ID: ${booking._id} has been deleted.`);
+                console.log(`Booking ID: ${booking._id} has been deleted.`.bgRed.white);
             }
         }
     } catch (error) {
