@@ -104,7 +104,7 @@ const autoCleanUpBookings = async () => {
 
         // Fetch expired bookings where endDate <= now
         const expiredBookings = await Booking.find({
-            endDate: { $lte: now.toDate },
+            endDate: { $lte: now.toDate() },
             // Compare endDate with Karachi time (converted to Date)
         });
 
