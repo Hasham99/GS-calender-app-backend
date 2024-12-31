@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerController, loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController } from "../controllers/auth.controller.js";
+import { registerController, loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -12,6 +12,9 @@ router.route("/login").post(loginController);
 router.route("/forgot-password").post(ForgotPasswordController);
 router.route("/users/:role").get(getAllUsersByRoleController);
 router.route("/users").get(getAllUsersController);
+
+//delete user route
+router.route("/user/:id").delete(isAdminController, deleteUserByIdController);
 
 
 

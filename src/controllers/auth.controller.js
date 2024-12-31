@@ -69,6 +69,7 @@ export const addAdminController = asyncHandler(async (req, res) => {
     // Send response
     res.status(201).json(new apiResponse(201, createdAdmin, "Admin user added successfully"));
 });
+
 // Register User Controller (Only admin can register users)
 export const registerController = asyncHandler(async (req, res) => {
     // Ensure the user is an admin
@@ -170,4 +171,19 @@ export const ForgotPasswordController = asyncHandler(async (req, res) => {
 // Protected Test Controller
 export const testController = asyncHandler(async (req, res) => {
     res.status(200).json(new apiResponse(200, "Protected Route - Accessible only by authenticated users"));
+});
+
+
+//delete user by id
+export const deleteUserByIdController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const user = await User.findById(id);
+
+    if (!user) {
+        throw new apiError(404, "User not found");
+    }
+
+    await user.deleteOne();
+    return res.status(200).json(new apiResponse(200, user, "User deleted successfully"));
 });
