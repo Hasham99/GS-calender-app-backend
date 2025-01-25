@@ -9,13 +9,26 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: [true, "Email is required"],
-        unique: true,  // Ensures email is unique
+        unique: true,
         lowercase: true,
         trim: true,
     },
     password: {
         type: String,
         required: [true, "Password is required"],
+    },
+    phoneNumber: {
+        type: String,
+        unique: true,
+        trim: true,
+    },
+    valid: {
+        type: Boolean,
+        default: true,
+    },
+    otp: {
+        type: Number,
+        default: null,
     },
     role: {
         type: String,
@@ -30,8 +43,11 @@ const userSchema = new mongoose.Schema({
         ],
         default: "family_member",
     },
+    facilities: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Facility",
+        required: [true, "At least one facility allocation is required"],
+    }],
 }, { timestamps: true });
 
-
-// Create User model
 export const User = mongoose.model("User", userSchema);

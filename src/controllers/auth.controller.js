@@ -1,9 +1,14 @@
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { User } from "../models/user.model.js";
+import { Facility } from "../models/facility.model.js";
 import { apiError } from "../utils/apiError.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { comparePassword, hashPassword } from "../utils/hashPassword.js";
 import jwt from "jsonwebtoken";
+import { sendEmail } from "../utils/emailService.js";
+import dotenv from "dotenv";
+dotenv.config();
+
 
 // Function to generate JWT token
 const generateToken = (userId) => {
@@ -21,6 +26,7 @@ export const getAllUsersByRoleController = asyncHandler(async (req, res) => {
 
     res.status(200).json(new apiResponse(200, users, "All users fetched successfully"));
 })
+
 export const getAllUsersController = asyncHandler(async (req, res) => {
 
     // get all users 
@@ -71,39 +77,165 @@ export const addAdminController = asyncHandler(async (req, res) => {
 });
 
 // Register User Controller (Only admin can register users)
+// export const registerController = asyncHandler(async (req, res) => {
+//     // Ensure the user is an admin
+//     if (req.user.role !== "admin") {
+//         throw new apiError(403, "Only admins can register new users");
+//     }
+
+//     const { name, email, password, role } = req.body;
+
+//     // Validate required fields
+//     if (!name || !email || !password) {
+//         throw new apiError(400, "All fields are required");
+//     }
+
+//     // Check if user with the same email already exists
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//         throw new apiError(400, "User already exists");
+//     }
+
+//     // Hash the password before saving it
+//     const hashedPassword = await hashPassword(password);
+
+//     // Save the new user
+//     const user = await new User({ name, email, password: hashedPassword, role }).save();
+//     const createdUser = await User.findById(user._id).select("-password");
+
+//     res.status(201).json(new apiResponse(201, createdUser, "User registered successfully"));
+// });
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000);
+
 export const registerController = asyncHandler(async (req, res) => {
-    // Ensure the user is an admin
-    if (req.user.role !== "admin") {
-        throw new apiError(403, "Only admins can register new users");
-    }
+    const { name, email, password } = req.body;
 
-    const { name, email, password, role } = req.body;
-
-    // Validate required fields
     if (!name || !email || !password) {
         throw new apiError(400, "All fields are required");
     }
 
-    // // Ensure the role is either "admin" or "user"
-    // if (role !== "admin" && role !== "user") {
-    //     throw new apiError(400, "Invalid role. Only 'admin' or 'user' are allowed");
-    // }
-
-    // Check if user with the same email already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
         throw new apiError(400, "User already exists");
     }
 
-    // Hash the password before saving it
+    const hashedPassword = await hashPassword(password);
+    const otp = generateOtp();
+
+    const newUser = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        otp,
+        valid: false,
+    });
+
+    // Send OTP via email
+    const emailSent = await sendEmail(
+        email,
+        "Your OTP for Verification",
+        `Your OTP is ${otp}. Please use this to verify your account.`
+    );
+
+    if (!emailSent) {
+        throw new apiError(500, "Failed to send OTP email. Please try again.");
+    }
+
+    res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully. OTP sent to email."));
+});
+
+export const verifyOtpController = asyncHandler(async (req, res) => {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+        throw new apiError(400, "Email and OTP are required");
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+        throw new apiError(404, "User not found");
+    }
+
+    if (user.otp !== otp) {
+        throw new apiError(400, "Invalid OTP");
+    }
+
+    user.valid = true;
+    user.otp = null; // Clear OTP after verification
+    await user.save();
+
+    res.status(200).json(new apiResponse(200, null, "User verified successfully."));
+});
+
+//register user with admin no otp required
+// export const registerControllerByAdmin = asyncHandler(async (req, res) => {
+//     const { name, email, password, role } = req.body;
+
+//     if (!name || !email || !password) {
+//         throw new apiError(400, "All fields are required");
+//     }
+
+//     const existingUser = await User.findOne({ email });
+//     if (existingUser) {
+//         throw new apiError(400, "User already exists");
+//     }
+
+//     const hashedPassword = await hashPassword(password);
+
+//     const newUser = await User.create({
+//         name,
+//         email,
+//         password: hashedPassword,
+//         role,
+//         valid: true,
+//     });
+
+//     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
+// });
+export const registerControllerByAdmin = asyncHandler(async (req, res) => {
+    const { name, email, password, role, facilityIds } = req.body;
+
+    if (!name || !email || !password || !facilityIds || !facilityIds.length) {
+        throw new apiError(400, "All fields are required including facilityIds");
+    }
+
+    // Ensure all provided facility IDs exist
+    const facilities = await Facility.find({ _id: { $in: facilityIds } });
+    if (facilities.length !== facilityIds.length) {
+        throw new apiError(404, "One or more facilities not found");
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        throw new apiError(400, "User already exists");
+    }
+
     const hashedPassword = await hashPassword(password);
 
-    // Save the new user
-    const user = await new User({ name, email, password: hashedPassword, role }).save();
-    const createdUser = await User.findById(user._id).select("-password");
+    const newUser = await User.create({
+        name,
+        email,
+        password: hashedPassword,
+        role,
+        valid: true,
+        facilities: facilityIds,
+    });
 
-    res.status(201).json(new apiResponse(201, createdUser, "User registered successfully"));
+    // Send email with user credentials
+    const emailSent = await sendEmail(
+        email,
+        "Welcome to Our Platform",
+        `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`
+    );
+
+    if (!emailSent) {
+        throw new apiError(500, "User registered, but failed to send email.");
+    }
+
+    res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials sent to email."));
 });
+
 
 // Login User Controller
 export const loginController = asyncHandler(async (req, res) => {
@@ -136,7 +268,7 @@ export const loginController = asyncHandler(async (req, res) => {
 
     // Generate JWT token for the user
     const token = generateToken(user._id);
-    const loggedInUser = await User.findById(user._id).select("-password");
+    const loggedInUser = await User.findById(user._id).select("-password").populate("facilities", "_id name description");
 
     res.status(200).json(new apiResponse(200, { user: loggedInUser, token }, "User logged in successfully"));
 });

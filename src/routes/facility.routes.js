@@ -7,7 +7,7 @@ import { verifyJWT, authorizeRoles } from "../middlewares/auth.middleware.js";
 const router = Router();
 
 // Get all facilities
-router.route("/").get(verifyJWT, getFacilitiesController);
+router.route("/").get(getFacilitiesController);
 router.route("/:id").get(verifyJWT, getFacilitiesByIdController);
 router.route("/:id").delete(verifyJWT, deleteFacilityController);
 router.route("/").post(verifyJWT, authorizeRoles("admin"), createFacilityController);
