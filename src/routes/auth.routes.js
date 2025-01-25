@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { registerController, loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, registerControllerByAdmin } from "../controllers/auth.controller.js";
+import { loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, registerControllerByAdmin } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController } from "../middlewares/auth.middleware.js";
 
 const router = Router();
