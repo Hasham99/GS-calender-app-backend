@@ -37,17 +37,17 @@ export const getAllUsersController = asyncHandler(async (req, res) => {
 
 // Controller for adding a new admin (temporary route without authentication)
 export const addAdminController = asyncHandler(async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
 
     // Check if all required fields are provided
-    if (!name || !email || !password || !role) {
-        throw new apiError(400, "All fields (name, email, password, role) are required");
+    if (!name || !email || !password || !phoneNumber) {
+        throw new apiError(400, "All fields (name, email, password, phoneNumber) are required");
     }
 
     // Check if the role is "admin" (optional validation step)
-    if (role !== "admin") {
-        throw new apiError(400, "Role must be 'admin'");
-    }
+    // if (role !== "admin") {
+    //     throw new apiError(400, "Role must be 'admin'");
+    // }
 
     // Check if the user already exists by email
     const existingUser = await User.findOne({ email });
@@ -64,6 +64,7 @@ export const addAdminController = asyncHandler(async (req, res) => {
         email,
         password: hashedPassword,  // Store the hashed password
         role: "admin",  // Admin role
+        phoneNumber,
     });
 
     // Save the new admin to the database
@@ -145,28 +146,28 @@ export const registerController = asyncHandler(async (req, res) => {
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully. OTP sent to email."));
 });
 
-export const verifyOtpController = asyncHandler(async (req, res) => {
-    const { email, otp } = req.body;
+// export const verifyOtpController = asyncHandler(async (req, res) => {
+//     const { email, otp } = req.body;
 
-    if (!email || !otp) {
-        throw new apiError(400, "Email and OTP are required");
-    }
+//     if (!email || !otp) {
+//         throw new apiError(400, "Email and OTP are required");
+//     }
 
-    const user = await User.findOne({ email });
-    if (!user) {
-        throw new apiError(404, "User not found");
-    }
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//         throw new apiError(404, "User not found");
+//     }
 
-    if (user.otp !== otp) {
-        throw new apiError(400, "Invalid OTP");
-    }
+//     if (user.otp !== otp) {
+//         throw new apiError(400, "Invalid OTP");
+//     }
 
-    user.valid = true;
-    user.otp = null; // Clear OTP after verification
-    await user.save();
+//     user.valid = true;
+//     user.otp = null; // Clear OTP after verification
+//     await user.save();
 
-    res.status(200).json(new apiResponse(200, null, "User verified successfully."));
-});
+//     res.status(200).json(new apiResponse(200, null, "User verified successfully."));
+// });
 
 //register user with admin no otp required
 // export const registerControllerByAdmin = asyncHandler(async (req, res) => {
@@ -194,16 +195,10 @@ export const verifyOtpController = asyncHandler(async (req, res) => {
 //     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
 // });
 export const registerControllerByAdmin = asyncHandler(async (req, res) => {
-    const { name, email, password, role, facilityIds } = req.body;
+    const { name, email, password, role, facilityIds, valid } = req.body;
 
-    if (!name || !email || !password || !facilityIds || !facilityIds.length) {
-        throw new apiError(400, "All fields are required including facilityIds");
-    }
-
-    // Ensure all provided facility IDs exist
-    const facilities = await Facility.find({ _id: { $in: facilityIds } });
-    if (facilities.length !== facilityIds.length) {
-        throw new apiError(404, "One or more facilities not found");
+    if (!name || !email || !password) {
+        throw new apiError(400, "Name, email, and password are required");
     }
 
     const existingUser = await User.findOne({ email });
@@ -217,25 +212,93 @@ export const registerControllerByAdmin = asyncHandler(async (req, res) => {
         name,
         email,
         password: hashedPassword,
+        plainPassword: password,  // Store plain password temporarily
         role,
-        valid: true,
-        facilities: facilityIds,
+        valid: valid,
+        // valid: valid || false,
+        facilities: facilityIds || [],
     });
 
-    // Send email with user credentials
+    let emailContent;
+    if (newUser.valid) {
+        emailContent = `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`;
+    } else {
+        const inviteLink = `${process.env.APP_BASE_URL}/invite/${newUser._id}`;
+        const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
+        emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
+    }
+
     const emailSent = await sendEmail(
         email,
-        "Welcome to Our Platform",
-        `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`
+        newUser.valid ? "Welcome to Bookable App" : "You're Invited to Bookable App",
+        emailContent
     );
 
     if (!emailSent) {
         throw new apiError(500, "User registered, but failed to send email.");
     }
 
-    res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials sent to email."));
+    res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials/invite sent to email."));
 });
 
+export const sendOtpController = asyncHandler(async (req, res) => {
+    const { userId } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new apiError(404, "User not found");
+    }
+
+    if (user.valid) {
+        throw new apiError(400, "User is already verified");
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000); // Generate 6-digit OTP
+    user.otp = otp;
+    await user.save();
+
+    const emailSent = await sendEmail(
+        user.email,
+        "Your OTP for Account Verification",
+        `Hello ${user.name},\n\nYour OTP for verification is: ${otp}\n\nPlease enter this OTP in the app to verify your account.`
+    );
+
+    if (!emailSent) {
+        throw new apiError(500, "Failed to send OTP email.");
+    }
+
+    res.status(200).json(new apiResponse(200, {}, "OTP sent to email successfully."));
+});
+
+export const verifyOtpController = asyncHandler(async (req, res) => {
+    const { userId, otp } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new apiError(404, "User not found");
+    }
+
+    if (user.otp !== otp) {
+        throw new apiError(400, "Invalid OTP");
+    }
+
+    user.valid = true;
+    user.otp = null; // Clear OTP after verification
+    await user.save();
+
+    // Send congratulations email
+    const emailSent = await sendEmail(
+        user.email,
+        "Congratulations! Your Account is Verified",
+        `Hello ${user.name},\n\nCongratulations! Your account has been successfully verified.\n\nHere are your credentials:\nEmail: ${user.email}\nPassword: ${user.plainPassword}\n\nYou can now log in and start using our platform.\n\nBest regards,\nThe Team`
+    );
+
+    if (!emailSent) {
+        throw new apiError(500, "Account verified, but failed to send confirmation email.");
+    }
+
+    res.status(200).json(new apiResponse(200, {}, "Account verified successfully. Confirmation email sent."));
+});
 
 // Login User Controller
 export const loginController = asyncHandler(async (req, res) => {

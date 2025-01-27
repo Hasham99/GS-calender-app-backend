@@ -7,6 +7,7 @@ import { User } from "../models/user.model.js";
 import { BookingHistory } from "../models/bookingHistory.model.js";
 import moment from "moment-timezone";
 import colors from "colors";
+import { sendEmail } from "../utils/emailService.js";
 
 
 colors.enable();
@@ -89,6 +90,16 @@ const createBookingController = asyncHandler(async (req, res) => {
     io.emit("booking_created", populatedBooking);
     console.log("New booking created and emitted:".bgGreen.white, populatedBooking._id);
 
+    // Send confirmation email to the user
+    const emailSent = await sendEmail(
+        userExists.email,
+        "Booking Confirmation",
+        `Hello ${userExists.name},\n\nYour booking has been successfully created.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${startDateObj.toLocaleString()}\nEnd Date: ${endDateObj.toLocaleString()}\n\nThank you for using our service!`
+    );
+
+    if (!emailSent) {
+        console.error("Failed to send confirmation email.");
+    }
     // Respond to the client
     return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });

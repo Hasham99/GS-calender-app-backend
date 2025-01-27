@@ -17,6 +17,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: [true, "Password is required"],
     },
+    plainPassword: { type: String }, // Temporary field for storing plain password
     phoneNumber: {
         type: String,
         unique: true,
