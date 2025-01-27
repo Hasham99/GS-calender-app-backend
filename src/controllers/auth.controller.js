@@ -195,7 +195,7 @@ export const registerController = asyncHandler(async (req, res) => {
 //     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
 // });
 export const registerControllerByAdmin = asyncHandler(async (req, res) => {
-    const { name, email, password, role, facilityIds, valid } = req.body;
+    const { name, email, password, phoneNumber, role, facilityIds, valid } = req.body;
 
     if (!name || !email || !password) {
         throw new apiError(400, "Name, email, and password are required");
@@ -213,6 +213,7 @@ export const registerControllerByAdmin = asyncHandler(async (req, res) => {
         email,
         password: hashedPassword,
         plainPassword: password,  // Store plain password temporarily
+        phoneNumber,
         role,
         valid: valid,
         // valid: valid || false,
