@@ -5,7 +5,8 @@ import morgan from "morgan";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
 import facilityRoutes from "./routes/facility.routes.js";
-import bookingRoutes from "./routes/booking.routes.js"; // Booking routes
+import bookingRoutes from "./routes/booking.routes.js";
+import clientRoutes from "./routes/client.routes.js";
 
 // Initialize the Express app
 const app = express();
@@ -29,6 +30,7 @@ app.use(morgan("dev"));
 app.use("/api/v1/auth", authRoutes); // Authentication routes
 app.use("/api/v1/facility", facilityRoutes); // Facility routes
 app.use("/api/v1/booking", bookingRoutes); // Booking routes
+app.use("/api/v1/client", clientRoutes); // Booking routes
 
 // Root route for health check (optional)
 app.use("/", (req, res) => {

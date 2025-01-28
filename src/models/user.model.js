@@ -1,54 +1,26 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: [true, "Name is required"],
-        trim: true,
-    },
-    email: {
-        type: String,
-        required: [true, "Email is required"],
-        unique: true,
-        lowercase: true,
-        trim: true,
-    },
-    password: {
-        type: String,
-        required: [true, "Password is required"],
-    },
-    plainPassword: { type: String }, // Temporary field for storing plain password
-    phoneNumber: {
-        type: String,
-        unique: true,
-        trim: true,
-    },
-    valid: {
-        type: Boolean,
-        default: true,
-    },
-    otp: {
-        type: Number,
-        default: null,
-    },
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true },
+    plainPassword: { type: String },
+    phoneNumber: { type: String, unique: true, trim: true },
+    valid: { type: Boolean, default: true },
+    otp: { type: Number, default: null },
     role: {
         type: String,
-        enum: [
-            "family_member",
-            "admin",
-            "maintenance_manager",
-            "maintenance_staff",
-            "kitchen_manager",
-            "staff_member",
-            "family_stakeholder",
-        ],
-        default: "family_member",
+        enum: ["user", "admin"], // Allow only "user" and "admin" roles
+        default: "user",
     },
-    facilities: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Facility",
-        required: [true, "At least one facility allocation is required"],
-    }],
+    facilities: [
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Facility",
+        },
+    ],
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Reference to the user who created this user
 }, { timestamps: true });
 
 export const User = mongoose.model("User", userSchema);

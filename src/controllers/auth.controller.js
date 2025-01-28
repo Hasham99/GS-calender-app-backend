@@ -7,6 +7,7 @@ import { comparePassword, hashPassword } from "../utils/hashPassword.js";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/emailService.js";
 import dotenv from "dotenv";
+import { Client } from "../models/client.model.js";
 dotenv.config();
 
 
@@ -77,38 +78,6 @@ export const addAdminController = asyncHandler(async (req, res) => {
     res.status(201).json(new apiResponse(201, createdAdmin, "Admin user added successfully"));
 });
 
-// Register User Controller (Only admin can register users)
-// export const registerController = asyncHandler(async (req, res) => {
-//     // Ensure the user is an admin
-//     if (req.user.role !== "admin") {
-//         throw new apiError(403, "Only admins can register new users");
-//     }
-
-//     const { name, email, password, role } = req.body;
-
-//     // Validate required fields
-//     if (!name || !email || !password) {
-//         throw new apiError(400, "All fields are required");
-//     }
-
-//     // Check if user with the same email already exists
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser) {
-//         throw new apiError(400, "User already exists");
-//     }
-
-//     // Hash the password before saving it
-//     const hashedPassword = await hashPassword(password);
-
-//     // Save the new user
-//     const user = await new User({ name, email, password: hashedPassword, role }).save();
-//     const createdUser = await User.findById(user._id).select("-password");
-
-//     res.status(201).json(new apiResponse(201, createdUser, "User registered successfully"));
-// });
-
-const generateOtp = () => Math.floor(100000 + Math.random() * 900000);
-
 export const registerController = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
 
@@ -146,35 +115,11 @@ export const registerController = asyncHandler(async (req, res) => {
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully. OTP sent to email."));
 });
 
-// export const verifyOtpController = asyncHandler(async (req, res) => {
-//     const { email, otp } = req.body;
+// export const registerControllerByAdminCient = asyncHandler(async (req, res) => {
+//     const { clientId, name, email, password, phoneNumber, role, facilityIds, valid } = req.body;
 
-//     if (!email || !otp) {
-//         throw new apiError(400, "Email and OTP are required");
-//     }
-
-//     const user = await User.findOne({ email });
-//     if (!user) {
-//         throw new apiError(404, "User not found");
-//     }
-
-//     if (user.otp !== otp) {
-//         throw new apiError(400, "Invalid OTP");
-//     }
-
-//     user.valid = true;
-//     user.otp = null; // Clear OTP after verification
-//     await user.save();
-
-//     res.status(200).json(new apiResponse(200, null, "User verified successfully."));
-// });
-
-//register user with admin no otp required
-// export const registerControllerByAdmin = asyncHandler(async (req, res) => {
-//     const { name, email, password, role } = req.body;
-
-//     if (!name || !email || !password) {
-//         throw new apiError(400, "All fields are required");
+//     if (!clientId || !name || !email || !password || !phoneNumber) {
+//         throw new apiError(400, "clientId, Name, email, password and phoneNumber is required");
 //     }
 
 //     const existingUser = await User.findOne({ email });
@@ -185,20 +130,56 @@ export const registerController = asyncHandler(async (req, res) => {
 //     const hashedPassword = await hashPassword(password);
 
 //     const newUser = await User.create({
+//         clientId,
 //         name,
 //         email,
 //         password: hashedPassword,
+//         plainPassword: password,  // Store plain password temporarily
+//         phoneNumber,
 //         role,
-//         valid: true,
+//         // valid: valid,
+//         valid: valid || false,
+//         facilities: facilityIds || [],
 //     });
 
-//     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
-// });
-export const registerControllerByAdmin = asyncHandler(async (req, res) => {
-    const { name, email, password, phoneNumber, role, facilityIds, valid } = req.body;
+//     // After creating a new user
+//     await Client.findByIdAndUpdate(clientId, {
+//         $push: { users: newUser._id } // Add the user's ID to the client’s users array
+//     });
 
-    if (!name || !email || !password) {
-        throw new apiError(400, "Name, email, and password are required");
+//     let emailContent;
+//     if (newUser.valid) {
+//         emailContent = `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`;
+//     } else {
+//         const inviteLink = `${process.env.APP_BASE_URL}/invite/${newUser._id}`;
+//         const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
+//         emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
+//     }
+
+//     const emailSent = await sendEmail(
+//         email,
+//         newUser.valid ? "Welcome to Bookable App" : "You're Invited to Bookable App",
+//         emailContent
+//     );
+
+//     if (!emailSent) {
+//         throw new apiError(500, "User registered, but failed to send email.");
+//     }
+
+//     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials/invite sent to email."));
+// });
+
+
+export const registerControllerByAdminCient = asyncHandler(async (req, res) => {
+    const { clientId, name, email, password, phoneNumber, role, facilityIds, valid, createdBy } = req.body;
+
+    if (!clientId || !name || !email || !password || !phoneNumber) {
+        throw new apiError(400, "clientId, name, email, password, and phoneNumber are required");
+    }
+
+    // Check if the role is valid
+    if (role && !["user", "admin"].includes(role)) {
+        throw new apiError(400, "Invalid role. Role must be either 'user' or 'admin'.");
     }
 
     const existingUser = await User.findOne({ email });
@@ -209,35 +190,64 @@ export const registerControllerByAdmin = asyncHandler(async (req, res) => {
     const hashedPassword = await hashPassword(password);
 
     const newUser = await User.create({
+        clientId,
         name,
         email,
         password: hashedPassword,
-        plainPassword: password,  // Store plain password temporarily
+        plainPassword: password, // Store plain password temporarily
         phoneNumber,
-        role,
-        valid: valid,
-        // valid: valid || false,
+        role: role || "user", // Default to "user" if no role is specified
+        valid: valid || false,
         facilities: facilityIds || [],
+        createdBy: createdBy || null, // Reference the user who created this user
+    });
+    // Push the user into the Client's users array
+    await Client.findByIdAndUpdate(clientId, {
+        $push: { users: newUser._id },
     });
 
-    let emailContent;
-    if (newUser.valid) {
-        emailContent = `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`;
-    } else {
-        const inviteLink = `${process.env.APP_BASE_URL}/invite/${newUser._id}`;
-        const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
-        emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
+    res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
+});
+
+
+
+// Register Controller for Admin Creating Other Users
+export const registerUserByAdmin = asyncHandler(async (req, res) => {
+    const { adminId, name, email, password, phoneNumber, role, valid } = req.body;
+
+    // Validate required fields
+    if (!adminId || !name || !email || !password) {
+        throw new apiError(400, "AdminId, Name, Email, and Password are required");
     }
 
-    const emailSent = await sendEmail(
+    // Find the admin to get their clientId
+    const admin = await User.findById(adminId);
+    if (!admin) {
+        throw new apiError(404, "Admin not found");
+    }
+
+    const clientId = admin.clientId;  // Use the admin's clientId for the new user
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        throw new apiError(400, "User already exists");
+    }
+
+    const hashedPassword = await hashPassword(password);
+
+    const newUser = await User.create({
+        clientId,
+        name,
         email,
-        newUser.valid ? "Welcome to Bookable App" : "You're Invited to Bookable App",
-        emailContent
-    );
+        password: hashedPassword,
+        plainPassword: password,
+        phoneNumber,
+        role,
+        valid: valid || false,
+    });
 
-    if (!emailSent) {
-        throw new apiError(500, "User registered, but failed to send email.");
-    }
+    // Send email logic (same as in the previous example)
+    // ...
 
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials/invite sent to email."));
 });

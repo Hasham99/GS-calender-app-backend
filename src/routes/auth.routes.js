@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, registerControllerByAdmin, sendOtpController } from "../controllers/auth.controller.js";
+import { loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminCient } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -15,16 +15,9 @@ router.route("/users").get(getAllUsersController);
 
 router.route("/user/:id").delete(isAdminController, deleteUserByIdController);
 
-router.route("/register").post(verifyJWT, authorizeRoles("admin"), registerControllerByAdmin);
+router.route("/register").post(verifyJWT, registerControllerByAdminCient);
 router.post("/send-otp", sendOtpController);
 router.post("/verify-otp", verifyOtpController);
 router.route("/test").get(testController);
-
-// router.route("/register-user").post(registerController);
-
-// Verify OTP Route
-// router.post("/verify-otp", verifyOtpController);
-
-// Protected Route for Testing (accessible by authenticated users)
 
 export default router;

@@ -8,6 +8,7 @@ import { BookingHistory } from "../models/bookingHistory.model.js";
 import moment from "moment-timezone";
 import colors from "colors";
 import { sendEmail } from "../utils/emailService.js";
+import cron from "node-cron";
 
 
 colors.enable();
@@ -17,16 +18,15 @@ const getBookingsControllerPer = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, bookings, "Bookings fetched successfully"));
 });
 
-
 const createBookingController = asyncHandler(async (req, res) => {
-    const { facility, user, startDate, endDate, conditionsAccepted } = req.body;
+    const { clientId, facility, user, startDate, endDate, conditionsAccepted } = req.body;
 
     // Debugging incoming data
     // console.log("Incoming booking request:", req.body);
     console.log("Incoming booking request:");
 
     // Validate required fields
-    if (!facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
+    if (!clientId || !facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
         throw new apiError(400, "All fields are required");
     }
 
@@ -71,6 +71,7 @@ const createBookingController = asyncHandler(async (req, res) => {
 
     // Create and save the new booking
     const newBooking = new Booking({
+        clientId,
         facility,
         user,
         startDate: startDateObj,
@@ -100,6 +101,28 @@ const createBookingController = asyncHandler(async (req, res) => {
     if (!emailSent) {
         console.error("Failed to send confirmation email.");
     }
+
+    // Schedule an email reminder 6 hours before the booking
+    const sixHoursBefore = new Date(startDateObj).getTime() - 6 * 60 * 60 * 1000; // 6 hours before booking
+    const currentTime = new Date().getTime();
+    const delay = sixHoursBefore - currentTime; // Calculate delay in milliseconds
+
+    if (delay > 0) {
+        setTimeout(async () => {
+            const emailSentReminder = await sendEmail(
+                userExists.email,
+                "Booking Reminder - 6 Hours Before",
+                `Hello ${userExists.name},\n\nThis is a reminder that your booking is starting in 6 hours.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${startDateObj.toLocaleString()}\nEnd Date: ${endDateObj.toLocaleString()}\n\nWe look forward to seeing you soon!`
+            );
+
+            if (!emailSentReminder) {
+                console.error("Failed to send 6 hours before reminder email.");
+            }
+        }, delay);
+    } else {
+        console.error("The 6-hour reminder time has already passed. Reminder not scheduled.");
+    }
+
     // Respond to the client
     return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });
@@ -108,7 +131,6 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
     await autoCleanUpBookings(); // Call the shared logic
     return res.status(200).json(new apiResponse(200, null, "Cleanup job executed successfully"));
 });
-;
 
 const autoCleanUpBookings = async () => {
     try {
@@ -152,7 +174,6 @@ const autoCleanUpBookings = async () => {
         console.error("Error during booking cleanup:", error);
     }
 };
-
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
     // Fetch all booking history``

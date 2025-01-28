@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 
 const bookingSchema = new mongoose.Schema(
     {
+        clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
         facility: { type: mongoose.Schema.Types.ObjectId, ref: "Facility", required: true },
         user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
         startDate: { type: Date, required: true },  // The start date and time for the booking

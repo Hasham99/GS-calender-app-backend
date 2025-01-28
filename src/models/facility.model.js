@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const facilitySchema = new mongoose.Schema({
+    clientId: { type: mongoose.Schema.Types.ObjectId, ref: 'Client', required: true },
     name: { type: String, required: true },
     description: { type: String },
     availability: { type: Boolean, default: true },

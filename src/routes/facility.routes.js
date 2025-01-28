@@ -12,7 +12,5 @@ router.route("/:id").get(verifyJWT, getFacilitiesByIdController);
 router.route("/:id").delete(verifyJWT, deleteFacilityController);
 router.route("/").post(verifyJWT, authorizeRoles("admin"), createFacilityController);
 
-// Get availability of a specific facility
-// router.route("/:facilityId/availability").get(verifyJWT, getFacilityAvailabilityController);
 
 export default router;

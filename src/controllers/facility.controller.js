@@ -37,15 +37,16 @@ const deleteFacilityController = asyncHandler(async (req, res) => {
 
 // Create a new facility
 const createFacilityController = asyncHandler(async (req, res) => {
-    const { name, description } = req.body;
+    const { clientId, name, description } = req.body;
 
     // Validate required fields
-    if (!name) {
-        return res.status(400).json(new apiError(400, "Facility name is required"));
+    if (!clientId || !name) {
+        return res.status(400).json(new apiError(400, "clientId and Facility name is required"));
     }
 
     // Create a new facility
     const newFacility = new Facility({
+        clientId,
         name,
         description,
         availability: true, // By default, the facility is available
