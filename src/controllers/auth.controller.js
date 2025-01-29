@@ -205,11 +205,27 @@ export const registerControllerByAdminCient = asyncHandler(async (req, res) => {
     await Client.findByIdAndUpdate(clientId, {
         $push: { users: newUser._id },
     });
+    let emailContent;
+    if (newUser.valid) {
+        emailContent = `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`;
+    } else {
+        const inviteLink = `${process.env.APP_BASE_URL}/${newUser._id}`;
+        const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
+        emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
+    }
+
+    const emailSent = await sendEmail(
+        email,
+        newUser.valid ? "Welcome to Bookable App" : "You're Invited to Bookable App",
+        emailContent
+    );
+
+    if (!emailSent) {
+        throw new apiError(500, "User registered, but failed to send email.");
+    }
 
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
 });
-
-
 
 // Register Controller for Admin Creating Other Users
 export const registerUserByAdmin = asyncHandler(async (req, res) => {
