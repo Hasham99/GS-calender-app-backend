@@ -13,7 +13,7 @@ router.route("/forgot-password").post(ForgotPasswordController);
 router.route("/users/:role").get(getAllUsersByRoleController);
 router.route("/users").get(getAllUsersController);
 
-router.route("/user/:id").delete(isAdminController, deleteUserByIdController);
+router.route("/user/:id").delete(verifyJWT, isAdminController, deleteUserByIdController);
 
 router.route("/register").post(verifyJWT, registerControllerByAdminCient);
 router.post("/send-otp", sendOtpController);
