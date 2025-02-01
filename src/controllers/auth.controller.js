@@ -170,7 +170,7 @@ export const registerController = asyncHandler(async (req, res) => {
 // });
 
 
-export const registerControllerByAdminCient = asyncHandler(async (req, res) => {
+export const registerControllerByAdminClient = asyncHandler(async (req, res) => {
     const { clientId, name, email, password, phoneNumber, role, facilityIds, valid, createdBy } = req.body;
 
     if (!clientId || !name || !email || !password || !phoneNumber) {
@@ -225,47 +225,6 @@ export const registerControllerByAdminCient = asyncHandler(async (req, res) => {
     }
 
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
-});
-
-// Register Controller for Admin Creating Other Users
-export const registerUserByAdmin = asyncHandler(async (req, res) => {
-    const { adminId, name, email, password, phoneNumber, role, valid } = req.body;
-
-    // Validate required fields
-    if (!adminId || !name || !email || !password) {
-        throw new apiError(400, "AdminId, Name, Email, and Password are required");
-    }
-
-    // Find the admin to get their clientId
-    const admin = await User.findById(adminId);
-    if (!admin) {
-        throw new apiError(404, "Admin not found");
-    }
-
-    const clientId = admin.clientId;  // Use the admin's clientId for the new user
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        throw new apiError(400, "User already exists");
-    }
-
-    const hashedPassword = await hashPassword(password);
-
-    const newUser = await User.create({
-        clientId,
-        name,
-        email,
-        password: hashedPassword,
-        plainPassword: password,
-        phoneNumber,
-        role,
-        valid: valid || false,
-    });
-
-    // Send email logic (same as in the previous example)
-    // ...
-
-    res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials/invite sent to email."));
 });
 
 export const sendOtpController = asyncHandler(async (req, res) => {
@@ -325,6 +284,110 @@ export const verifyOtpController = asyncHandler(async (req, res) => {
     }
 
     res.status(200).json(new apiResponse(200, {}, "Account verified successfully. Confirmation email sent."));
+});
+
+export const updateUserController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { name, phoneNumber, email, password } = req.body;
+
+    if (!id) {
+        throw new apiError(400, "User ID is required.");
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+        throw new apiError(404, "User not found.");
+    }
+
+    let updateFields = {};
+
+    // Update Name
+    if (name && name !== user.name) {
+        updateFields.name = name;
+        await sendEmail(
+            user.email,
+            "Profile Update Notification",
+            `Hello ${user.name},\n\nYour name has been successfully updated to "${name}".\n\nIf you didn't request this change, please contact support.\n\nBest,\nThe Team`
+        );
+    }
+
+    // Update Phone Number
+    if (phoneNumber && phoneNumber !== user.phoneNumber) {
+        updateFields.phoneNumber = phoneNumber;
+        await sendEmail(
+            user.email,
+            "Profile Update Notification",
+            `Hello ${user.name},\n\nYour phone number has been successfully updated to "${phoneNumber}".\n\nIf you didn't request this change, please contact support.\n\nBest,\nThe Team`
+        );
+    }
+
+    // Update Password (Hash it before saving)
+    if (password) {
+        updateFields.password = await hashPassword(password);
+        updateFields.plainPassword = password;
+        await sendEmail(
+            user.email,
+            "Security Alert: Password Changed",
+            `Hello ${user.name},\n\nYour account password has been successfully changed.\n\nIf you didn't request this change, please contact support immediately.\n\nBest,\nThe Team`
+        );
+    }
+
+    // If user wants to update email, send OTP to the OLD email
+    if (email && email !== user.email) {
+        const existingUser = await User.findOne({ email });
+        if (existingUser && existingUser._id.toString() !== id) {
+            throw new apiError(400, "Email already in use.");
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000); // Generate 6-digit OTP
+        user.otp = otp;
+        await user.save();
+
+        await sendEmail(
+            user.email, // Send OTP to the OLD email
+            "Email Change Verification",
+            `Hello ${user.name},\n\nYou requested to change your email.\nYour OTP for verification is: ${otp}.\n\nPlease enter this OTP to confirm your email change.\n\nBest,\nThe Team`
+        );
+
+        return res.status(200).json(new apiResponse(200, {}, "OTP sent to your current email for verification."));
+    }
+
+    // Apply updates (except email, which needs OTP verification)
+    const updatedUser = await User.findByIdAndUpdate(id, updateFields, { new: true });
+
+    res.status(200).json(new apiResponse(200, updatedUser, "User updated successfully."));
+});
+
+export const verifyEmailOtpController = asyncHandler(async (req, res) => {
+    const { userId, otp, newEmail } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new apiError(404, "User not found.");
+    }
+
+    if (user.otp !== otp) {
+        throw new apiError(400, "Invalid OTP.");
+    }
+
+    // Check if the email is already taken
+    const existingUser = await User.findOne({ email: newEmail });
+    if (existingUser && existingUser._id.toString() !== userId) {
+        throw new apiError(400, "Email already in use.");
+    }
+
+    // Update the email since OTP is verified
+    user.email = newEmail;
+    user.otp = null; // Clear OTP after successful verification
+    await user.save();
+
+    await sendEmail(
+        user.email,
+        "Email Change Confirmation",
+        `Hello ${user.name},\n\nYour email has been successfully updated to "${user.email}".\n\nIf you didn't request this change, please contact support.\n\nBest,\nThe Team`
+    );
+
+    res.status(200).json(new apiResponse(200, {}, "Email updated successfully."));
 });
 
 // Login User Controller
@@ -389,12 +452,6 @@ export const ForgotPasswordController = asyncHandler(async (req, res) => {
 
     res.status(200).json(new apiResponse(200, "Password reset successfully"));
 });
-
-// Protected Test Controller
-export const testController = asyncHandler(async (req, res) => {
-    res.status(200).json(new apiResponse(200, "Protected Route - Accessible only by authenticated users"));
-});
-
 
 //delete user by id
 export const deleteUserByIdController = asyncHandler(async (req, res) => {

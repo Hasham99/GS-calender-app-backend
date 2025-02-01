@@ -1,11 +1,8 @@
 import { Router } from "express";
-import { loginController, testController, ForgotPasswordController, addAdminController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminCient } from "../controllers/auth.controller.js";
+import { loginController, ForgotPasswordController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminClient, updateUserController, verifyEmailOtpController } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController } from "../middlewares/auth.middleware.js";
 
 const router = Router();
-
-// Add a new admin (Admin-only route) temporary
-router.route("/add-admin").post(addAdminController);  // Only accessible to authenticated admins
 
 // Public Routes
 router.route("/login").post(loginController);
@@ -14,10 +11,13 @@ router.route("/users/:role").get(getAllUsersByRoleController);
 router.route("/users").get(getAllUsersController);
 
 router.route("/user/:id").delete(verifyJWT, isAdminController, deleteUserByIdController);
+router.route("/user/:id").put(verifyJWT, updateUserController);
+router.route("/user/verify-email").post(verifyJWT, verifyEmailOtpController);
 
-router.route("/register").post(verifyJWT, registerControllerByAdminCient);
+
+
+router.route("/register").post(verifyJWT, registerControllerByAdminClient);
 router.post("/send-otp", sendOtpController);
 router.post("/verify-otp", verifyOtpController);
-router.route("/test").get(testController);
 
 export default router;
