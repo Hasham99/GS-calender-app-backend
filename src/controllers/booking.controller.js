@@ -132,6 +132,7 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, null, "Cleanup job executed successfully"));
 });
 
+
 const autoCleanUpBookings = async () => {
     try {
         // Get the current time in Karachi timezone
@@ -140,24 +141,23 @@ const autoCleanUpBookings = async () => {
         console.log(`Running cleanup job at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.white);
 
         // Fetch all bookings from the database
-        const bookings = await Booking.find({});
+        const bookings = await Booking.find({}).lean(); // Use .lean() to return plain JS objects
 
-        // Loop through each booking and check if it should be deleted
         for (const booking of bookings) {
-            // Get the booking's endDate (from the database, no manipulation needed)
-            const endDate = moment(booking.endDate); // Just use the stored endDate
-
-            // Check if the endDate is same or before the current Karachi time
-            console.log(`Checking booking ID endDate: ${booking._id}`.bgWhite.black);
-            // Check if the endDate is same or before the current Karachi time
-            // console.log(`Checking booking ID endDate: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgWhite.black);
+            const endDate = moment(booking.endDate);
 
             if (endDate.isSameOrBefore(nowKarachi)) {
                 console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`.yellow);
 
-                // Move expired booking to history
+                // Ensure references are correctly copied
                 const bookingHistory = new BookingHistory({
-                    ...booking.toObject(),
+                    clientId: booking.clientId || null, // Ensure it's preserved
+                    facility: booking.facility || null,
+                    user: booking.user || null,
+                    startDate: booking.startDate,
+                    endDate: booking.endDate,
+                    status: booking.status,
+                    conditionsAccepted: booking.conditionsAccepted,
                     deletedAt: nowKarachi.toDate(),
                 });
 
@@ -175,6 +175,50 @@ const autoCleanUpBookings = async () => {
     }
 };
 
+
+// const autoCleanUpBookings = async () => {
+//     try {
+//         // Get the current time in Karachi timezone
+//         const nowKarachi = moment().tz("Asia/Karachi");
+
+//         console.log(`Running cleanup job at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.white);
+
+//         // Fetch all bookings from the database
+//         const bookings = await Booking.find({});
+
+//         // Loop through each booking and check if it should be deleted
+//         for (const booking of bookings) {
+//             // Get the booking's endDate (from the database, no manipulation needed)
+//             const endDate = moment(booking.endDate); // Just use the stored endDate
+
+//             // Check if the endDate is same or before the current Karachi time
+//             console.log(`Checking booking ID endDate: ${booking._id}`.bgWhite.black);
+//             // Check if the endDate is same or before the current Karachi time
+//             // console.log(`Checking booking ID endDate: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgWhite.black);
+
+//             if (endDate.isSameOrBefore(nowKarachi)) {
+//                 console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`.yellow);
+
+//                 // Move expired booking to history
+//                 const bookingHistory = new BookingHistory({
+//                     ...booking.toObject(),
+//                     deletedAt: nowKarachi.toDate(),
+//                 });
+
+//                 // Save to history
+//                 await bookingHistory.save();
+
+//                 // Delete the booking from the main collection
+//                 await Booking.deleteOne({ _id: booking._id });
+
+//                 console.log(`Booking ID: ${booking._id} has been deleted.`.bgRed.white);
+//             }
+//         }
+//     } catch (error) {
+//         console.error("Error during booking cleanup:", error);
+//     }
+// };
+
 const getBookingHistoryController = asyncHandler(async (req, res) => {
     // Fetch all booking history``
     const bookingHistory = await BookingHistory.find()
@@ -183,6 +227,21 @@ const getBookingHistoryController = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new apiResponse(200, bookingHistory, "Booking history fetched successfully"));
 });
+
+const getBookingHistoryByIdController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    // Find the booking history by ID and populate related fields
+    const bookingHistory = await BookingHistory.findById(id)
+        .populate([{ path: "facility", select: "name description" }, { path: "user", select: "name email role" }]);
+
+    if (!bookingHistory) {
+        return res.status(404).json(new apiResponse(404, null, "Booking history not found"));
+    }
+
+    return res.status(200).json(new apiResponse(200, bookingHistory, "Booking history fetched successfully"));
+});
+
 
 // Get all bookings
 const getBookingsController = asyncHandler(async (req, res) => {
@@ -217,4 +276,4 @@ const getBookingByIdController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, booking, "Booking retrieved successfully"));
 });
 
-export { createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController };
+export { createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController };
