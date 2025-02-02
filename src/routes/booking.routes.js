@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createBookingController, getBookingHistoryByIdController, getBookingsController } from "../controllers/booking.controller.js";
+import { createBookingController, getBookingHistoryByIdController, getBookingsController, getBookingHistoryByUserIdController } from "../controllers/booking.controller.js";
 import { verifyJWT } from "../middlewares/auth.middleware.js";
 
 import { autoCleanUpBookingsController, getBookingHistoryController } from "../controllers/booking.controller.js";
@@ -15,7 +15,7 @@ router.route("/").post(verifyJWT, createBookingController);
 // Get Booking History
 router.get("/booking-history", getBookingHistoryController);
 
-router.get("/booking-history/:id", getBookingHistoryByIdController);
+router.get("/booking-history/:id", getBookingHistoryByUserIdController);
 
 // Manual endpoint to trigger cleanup
 router.get("/cleanup", autoCleanUpBookingsController);

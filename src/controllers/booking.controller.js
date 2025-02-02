@@ -242,6 +242,20 @@ const getBookingHistoryByIdController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, bookingHistory, "Booking history fetched successfully"));
 });
 
+const getBookingHistoryByUserIdController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    // Find all booking history records for the given user ID
+    const bookingHistory = await BookingHistory.find({ user: id })
+        .populate([{ path: "facility", select: "name description" }, { path: "user", select: "name email role" }])
+        .sort({ deletedAt: -1 }); // Sort by most recently deleted
+
+    if (!bookingHistory || bookingHistory.length === 0) {
+        return res.status(404).json(new apiResponse(404, [], "No booking history found for this user"));
+    }
+
+    return res.status(200).json(new apiResponse(200, bookingHistory, "Booking history fetched successfully"));
+});
 
 // Get all bookings
 const getBookingsController = asyncHandler(async (req, res) => {
@@ -276,4 +290,4 @@ const getBookingByIdController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, booking, "Booking retrieved successfully"));
 });
 
-export { createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController };
+export { createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
