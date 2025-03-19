@@ -15,7 +15,7 @@ const app = express();
 app.use(
     cors({
         // origin: process.env.CORS_ORIGIN || "*", // Allow CORS from defined origin or all origins
-        origin: "http://localhost:5173",
+        origin: "*",
         credentials: true,
     })
 );
