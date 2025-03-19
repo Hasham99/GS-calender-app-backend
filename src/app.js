@@ -12,13 +12,18 @@ import clientRoutes from "./routes/client.routes.js";
 const app = express();
 
 // Middleware configuration
-app.use(
-    cors({
-        // origin: process.env.CORS_ORIGIN || "*", // Allow CORS from defined origin or all origins
-        origin: "*",
-        credentials: true,
-    })
-);
+// app.use(
+//     cors({
+//         // origin: process.env.CORS_ORIGIN || "*", // Allow CORS from defined origin or all origins
+//         origin: "http://localhost:5173",
+//         credentials: true,
+//     })
+// );
+
+app.use(cors({
+    origin: "*",  // Temporarily allow all origins
+    credentials: true
+}));
 
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
