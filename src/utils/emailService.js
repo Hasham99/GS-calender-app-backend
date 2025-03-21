@@ -4,11 +4,22 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Configure the email transporter
+// const transporter = nodemailer.createTransport({
+//     service: "Gmail", // or your preferred email service
+//     auth: {
+//         user: process.env.EMAIL_USER, // Your email address
+//         pass: process.env.EMAIL_PASS, // Your email password or app password
+//     },
+// });
+
+// Configure the email transporter for Zoho Mail
 const transporter = nodemailer.createTransport({
-    service: "Gmail", // or your preferred email service
+    host: "smtp.zoho.com",  // Zoho SMTP server
+    port: 465,              // Use 465 for SSL, or 587 for TLS
+    secure: true,           // true for 465 (SSL), false for 587 (TLS)
     auth: {
-        user: process.env.EMAIL_USER, // Your email address
-        pass: process.env.EMAIL_PASS, // Your email password or app password
+        user: process.env.EMAIL_USER, // Your Zoho email (e.g., yourname@yourdomain.com)
+        pass: process.env.EMAIL_PASS, // Your Zoho email password or App Password
     },
 });
 
