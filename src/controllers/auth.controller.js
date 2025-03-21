@@ -209,7 +209,7 @@ export const registerControllerByAdminClient = asyncHandler(async (req, res) => 
     if (newUser.valid) {
         emailContent = `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`;
     } else {
-        const inviteLink = `${process.env.APP_BASE_URL}${newUser._id}`;
+        const inviteLink = `${process.env.APP_BASE_URL}#/user/otp_screen?id=${newUser._id}`;
         const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
         emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
     }
