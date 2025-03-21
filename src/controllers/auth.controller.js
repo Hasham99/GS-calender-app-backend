@@ -211,7 +211,8 @@ export const registerControllerByAdminClient = asyncHandler(async (req, res) => 
     } else {
         const inviteLink = `${process.env.APP_BASE_URL}#/user/otp_screen?id=${newUser._id}`;
         const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
-        emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
+        // emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
+        emailContent = `Hello ${name},\n\nYou have been invited to Bookable.\nUse invite link below to verify your account:\n${inviteLink}`;
     }
 
     const emailSent = await sendEmail(
