@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginController, ForgotPasswordController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminClient, updateUserController, verifyEmailOtpController } from "../controllers/auth.controller.js";
+import { loginController, ForgotPasswordController, getAllUsersController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminClient, updateUserController, verifyEmailOtpController, inviteUserController, acceptInviteController } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController } from "../middlewares/auth.middleware.js";
 
 const router = Router();
@@ -19,5 +19,8 @@ router.route("/user/verify-email").post(verifyJWT, verifyEmailOtpController);
 router.route("/register").post(verifyJWT, registerControllerByAdminClient);
 router.post("/send-otp", sendOtpController);
 router.post("/verify-otp", verifyOtpController);
+
+router.post("/invite-user", verifyJWT, authorizeRoles("admin"), inviteUserController);
+router.post("/invite-accept/:id", acceptInviteController);
 
 export default router;

@@ -46,13 +46,35 @@ const createBookingController = asyncHandler(async (req, res) => {
     if (!userExists) {
         throw new apiError(400, "user not found");
     }
-    // Convert start and end dates to Asia/Karachi time and then to UTC before saving
-    // const startDateObj = moment.tz(startDate, "Asia/Karachi").utc().toDate();
-    // const endDateObj = moment.tz(endDate, "Asia/Karachi").utc().toDate();
+
+    // **Fetch user-specific booking limitations**
+    const maxWeeksAdvance = userExists.maxWeeksAdvance || 4; // Default: 4 weeks
+    const maxBookingsPerWeek = userExists.maxBookingsPerWeek || 3; // Default: 3 bookings
 
     // Convert dates to Date objects
     const startDateObj = new Date(startDate);
     const endDateObj = new Date(endDate);
+    const currentDate = new Date();
+
+     // **Check if booking is within the allowed advance weeks**
+     const maxAllowedDate = moment(currentDate).add(maxWeeksAdvance, "weeks").toDate();
+     if (startDateObj > maxAllowedDate) {
+         throw new apiError(400, `You can only book up to ${maxWeeksAdvance} weeks in advance.`);
+     }
+ 
+     // **Check user's weekly booking limit**
+     const startOfWeek = moment(startDateObj).startOf("isoWeek").toDate();
+     const endOfWeek = moment(startDateObj).endOf("isoWeek").toDate();
+ 
+     const userBookingsThisWeek = await Booking.countDocuments({
+         user,
+         startDate: { $gte: startOfWeek, $lte: endOfWeek },
+     });
+ 
+     if (userBookingsThisWeek >= maxBookingsPerWeek) {
+         throw new apiError(400, `You can only have ${maxBookingsPerWeek} bookings per week.`);
+     }
+     
 
     // Check for conflicting bookings
     const existingBookingConflict = await Booking.findOne({
@@ -132,7 +154,6 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, null, "Cleanup job executed successfully"));
 });
 
-
 const autoCleanUpBookings = async () => {
     try {
         // Get the current time in Karachi timezone
@@ -174,50 +195,6 @@ const autoCleanUpBookings = async () => {
         console.error("Error during booking cleanup:", error);
     }
 };
-
-
-// const autoCleanUpBookings = async () => {
-//     try {
-//         // Get the current time in Karachi timezone
-//         const nowKarachi = moment().tz("Asia/Karachi");
-
-//         console.log(`Running cleanup job at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.white);
-
-//         // Fetch all bookings from the database
-//         const bookings = await Booking.find({});
-
-//         // Loop through each booking and check if it should be deleted
-//         for (const booking of bookings) {
-//             // Get the booking's endDate (from the database, no manipulation needed)
-//             const endDate = moment(booking.endDate); // Just use the stored endDate
-
-//             // Check if the endDate is same or before the current Karachi time
-//             console.log(`Checking booking ID endDate: ${booking._id}`.bgWhite.black);
-//             // Check if the endDate is same or before the current Karachi time
-//             // console.log(`Checking booking ID endDate: ${booking._id}, End Date: ${endDate.format("YYYY-MM-DD HH:mm:ss")}, Now (Karachi): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgWhite.black);
-
-//             if (endDate.isSameOrBefore(nowKarachi)) {
-//                 console.log(`Booking ID: ${booking._id} is expired. Moving to history and deleting.`.yellow);
-
-//                 // Move expired booking to history
-//                 const bookingHistory = new BookingHistory({
-//                     ...booking.toObject(),
-//                     deletedAt: nowKarachi.toDate(),
-//                 });
-
-//                 // Save to history
-//                 await bookingHistory.save();
-
-//                 // Delete the booking from the main collection
-//                 await Booking.deleteOne({ _id: booking._id });
-
-//                 console.log(`Booking ID: ${booking._id} has been deleted.`.bgRed.white);
-//             }
-//         }
-//     } catch (error) {
-//         console.error("Error during booking cleanup:", error);
-//     }
-// };
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
     // Fetch all booking history``

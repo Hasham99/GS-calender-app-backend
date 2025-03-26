@@ -31,7 +31,7 @@ export const getAllUsersByRoleController = asyncHandler(async (req, res) => {
 export const getAllUsersController = asyncHandler(async (req, res) => {
 
     // get all users 
-    const users = await User.find().select("-password");
+    const users = await User.find().select("-password -plainPassword -otp").populate("facilities", "_id name description");
 
     res.status(200).json(new apiResponse(200, users, "All users fetched successfully"));
 })
@@ -115,61 +115,6 @@ export const registerController = asyncHandler(async (req, res) => {
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully. OTP sent to email."));
 });
 
-// export const registerControllerByAdminCient = asyncHandler(async (req, res) => {
-//     const { clientId, name, email, password, phoneNumber, role, facilityIds, valid } = req.body;
-
-//     if (!clientId || !name || !email || !password || !phoneNumber) {
-//         throw new apiError(400, "clientId, Name, email, password and phoneNumber is required");
-//     }
-
-//     const existingUser = await User.findOne({ email });
-//     if (existingUser) {
-//         throw new apiError(400, "User already exists");
-//     }
-
-//     const hashedPassword = await hashPassword(password);
-
-//     const newUser = await User.create({
-//         clientId,
-//         name,
-//         email,
-//         password: hashedPassword,
-//         plainPassword: password,  // Store plain password temporarily
-//         phoneNumber,
-//         role,
-//         // valid: valid,
-//         valid: valid || false,
-//         facilities: facilityIds || [],
-//     });
-
-//     // After creating a new user
-//     await Client.findByIdAndUpdate(clientId, {
-//         $push: { users: newUser._id } // Add the user's ID to the client’s users array
-//     });
-
-//     let emailContent;
-//     if (newUser.valid) {
-//         emailContent = `Hello ${name},\n\nYour account has been created successfully.\nEmail: ${email}\nPassword: ${password}\n\nPlease log in to your account.`;
-//     } else {
-//         const inviteLink = `${process.env.APP_BASE_URL}/invite/${newUser._id}`;
-//         const appDownloadLink = `${process.env.APP_DOWNLOAD_URL}`;
-//         emailContent = `Hello ${name},\n\nYou have been invited to our platform.\nPlease download our app from the link below:\n${appDownloadLink}\n\nOnce downloaded, use this invite link to verify your account:\n${inviteLink}`;
-//     }
-
-//     const emailSent = await sendEmail(
-//         email,
-//         newUser.valid ? "Welcome to Bookable App" : "You're Invited to Bookable App",
-//         emailContent
-//     );
-
-//     if (!emailSent) {
-//         throw new apiError(500, "User registered, but failed to send email.");
-//     }
-
-//     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully, credentials/invite sent to email."));
-// });
-
-
 export const registerControllerByAdminClient = asyncHandler(async (req, res) => {
     const { clientId, name, email, password, phoneNumber, role, facilityIds, valid, createdBy } = req.body;
 
@@ -228,6 +173,76 @@ export const registerControllerByAdminClient = asyncHandler(async (req, res) => 
     res.status(201).json(new apiResponse(201, { id: newUser._id }, "User registered successfully."));
 });
 
+export const inviteUserController = asyncHandler(async (req, res) => {
+    const { clientId, email, role, facilities, createdBy } = req.body;
+
+    if (!clientId || !email) {
+        throw new apiError(400, "Client ID and Email are required.");
+    }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+        throw new apiError(400, "User with this email already exists.");
+    }
+
+    // Create a user in pending state (without password)
+    const newUser = await User.create({
+        clientId,
+        email,
+        role: role || "user",
+        facilities: facilities || [],
+        valid: false, // Mark user as invalid until they accept the invite
+        createdBy
+    });
+
+    // Generate an invite link
+    const inviteLink = `${process.env.APP_BASE_URL}#/user/otp_screen?id=${newUser._id}`;
+    
+    // Email content
+    const emailContent = `Hello,\n\nYou have been invited to Bookable.\nUse this invite link to verify your account:\n${inviteLink}`;
+
+    // Send invite email
+    const emailSent = await sendEmail(email, "You're Invited to Bookable App", emailContent);
+
+    if (!emailSent) {
+        throw new apiError(500, "User created, but failed to send email.");
+    }
+
+    res.status(201).json(new apiResponse(201, { id: newUser._id }, "Invitation sent successfully."));
+})
+
+export const acceptInviteController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { name, password, phoneNumber } = req.body;
+
+    if (!name || !password || !phoneNumber) {
+        throw new apiError(400, "All fields are required.");
+    }
+
+    const user = await User.findById(id);
+    if (!user || user.valid) {
+        throw new apiError(400, "Invalid or already registered user.");
+    }
+
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+
+    // Update user details and mark as valid
+    user.name = name;
+    user.password = hashedPassword;
+    // user.plainPassword = password;
+    user.phoneNumber = phoneNumber;
+    user.valid = true;
+    user.acceptedAt = new Date();
+    
+    await user.save();
+
+    // Send confirmation email
+    const emailContent = `Hello ${name},\n\nYour account has been successfully registered.\n\nYou can now log in using your email and password.`;
+    await sendEmail(user.email, "Welcome to Bookable App", emailContent);
+
+    res.status(200).json(new apiResponse(200, { id: user._id }, "User registered successfully."));
+})
 export const sendOtpController = asyncHandler(async (req, res) => {
     const { userId } = req.body;
 
@@ -289,7 +304,7 @@ export const verifyOtpController = asyncHandler(async (req, res) => {
 
 export const updateUserController = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { name, phoneNumber, email, password } = req.body;
+    const { name, phoneNumber, email, password, addFacilityIds, removeFacilityIds } = req.body;
 
     if (!id) {
         throw new apiError(400, "User ID is required.");
@@ -310,6 +325,7 @@ export const updateUserController = asyncHandler(async (req, res) => {
             "Profile Update Notification",
             `Hello ${user.name},\n\nYour name has been successfully updated to "${name}".\n\nIf you didn't request this change, please contact support.\n\nBest,\nThe Team`
         );
+        
     }
 
     // Update Phone Number
@@ -352,7 +368,18 @@ export const updateUserController = asyncHandler(async (req, res) => {
 
         return res.status(200).json(new apiResponse(200, {}, "OTP sent to your current email for verification."));
     }
+// Handle Adding and Removing Facilities
+if (addFacilityIds && addFacilityIds.length > 0) {
+    updateFields.facilities = [
+        ...new Set([...user.facilities.map(facility => facility.toString()), ...addFacilityIds])
+    ]; // Prevent duplicates
+}
 
+if (removeFacilityIds && removeFacilityIds.length > 0) {
+    updateFields.facilities = user.facilities.filter(
+        facility => !removeFacilityIds.includes(facility.toString())
+    );
+}
     // Apply updates (except email, which needs OTP verification)
     const updatedUser = await User.findByIdAndUpdate(id, updateFields, { new: true });
 
