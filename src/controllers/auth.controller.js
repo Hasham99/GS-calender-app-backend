@@ -314,7 +314,7 @@ export const acceptInviteController = asyncHandler(async (req, res) => {
 
 export const selfRegisterController = asyncHandler(async (req, res) => {
   const { clientId } = req.params; // Get clientId from URL params
-  const { name, email, password, phoneNumber, facilities } = req.body;
+  const { name, email, password, phoneNumber } = req.body;
 
   if (!clientId || !name || !email || !password || !phoneNumber) {
     throw new apiError(400, "All fields are required.");
@@ -342,7 +342,7 @@ export const selfRegisterController = asyncHandler(async (req, res) => {
     password: hashedPassword,
     phoneNumber,
     // role: role || "user",
-    facilities: facilities || [],
+    facilities: ["67993aae205ef1801e8238cd","67e2602adc8d9dad40f4b14a"],
     valid: true, // User is immediately valid
   });
 
