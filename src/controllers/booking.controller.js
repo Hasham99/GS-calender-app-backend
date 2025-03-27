@@ -102,7 +102,11 @@ const createBookingController = asyncHandler(async (req, res) => {
     });
 
     await newBooking.save();
-
+    console.log("Received startDate:", startDate);
+    console.log("Converted startDate:", startDateObj);
+    console.log("Received endDate:", endDate);
+    console.log("Converted endDate:", endDateObj);
+    
     // Respond to the client// Populate both user and facility fields
     const populatedBooking = await Booking.findById(newBooking._id)
         .populate([{ path: 'facility', select: 'name description' }, { path: 'user', select: 'name email role' }]);

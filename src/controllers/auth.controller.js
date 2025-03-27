@@ -342,7 +342,7 @@ export const selfRegisterController = asyncHandler(async (req, res) => {
     password: hashedPassword,
     phoneNumber,
     // role: role || "user",
-    facilities: ["67993aae205ef1801e8238cd","67e2602adc8d9dad40f4b14a"],
+    facilities: ["67e2606adc8d9dad40f4b152","67e2602adc8d9dad40f4b14a"],
     valid: true, // User is immediately valid
   });
 
