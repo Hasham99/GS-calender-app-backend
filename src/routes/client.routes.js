@@ -8,6 +8,7 @@ const router = Router();
 router.route("/register").post(createClientController);
 router.route("/login").post(loginClientController);
 router.route("/user").post(registerControllerByAdminClient);
+
 router.route("/").get(getClientsController);
 router.route("/:clientId").get(getClientsController);
 

@@ -6,18 +6,18 @@ import { autoCleanUpBookingsController, getBookingHistoryController } from "../c
 
 const router = Router();
 
-// Get all bookings (optional)
-router.route("/").get(getBookingsController);
-
 // Create a new booking
 router.route("/").post(verifyJWT, createBookingController);
 
-// Get Booking History
-router.get("/booking-history", getBookingHistoryController);
+// Get all bookings (optional)
+router.route("/").get(getBookingsController);
 
-router.get("/booking-history/:id", getBookingHistoryByUserIdController);
+// Get Booking History
+router.route("/booking-history").get(getBookingHistoryController);
+
+router.route("/booking-history/:id").get(getBookingHistoryByUserIdController);
 
 // Manual endpoint to trigger cleanup
-router.get("/cleanup", autoCleanUpBookingsController);
+router.route("/cleanup").get(autoCleanUpBookingsController);
 
 export default router;
