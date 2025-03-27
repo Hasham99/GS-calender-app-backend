@@ -102,10 +102,10 @@ const createBookingController = asyncHandler(async (req, res) => {
     });
 
     await newBooking.save();
-    console.log("Received startDate:", startDate);
-    console.log("Converted startDate:", startDateObj);
-    console.log("Received endDate:", endDate);
-    console.log("Converted endDate:", endDateObj);
+    // console.log("Received startDate:", startDate);
+    // console.log("Converted startDate:", startDateObj);
+    // console.log("Received endDate:", endDate);
+    // console.log("Converted endDate:", endDateObj);
     
     // Respond to the client// Populate both user and facility fields
     const populatedBooking = await Booking.findById(newBooking._id)
@@ -118,11 +118,20 @@ const createBookingController = asyncHandler(async (req, res) => {
     console.log("New booking created and emitted:".bgGreen.white, populatedBooking._id);
 
     // Send confirmation email to the user
-    const emailSent = await sendEmail(
-        userExists.email,
-        "Booking Confirmation",
-        `Hello ${userExists.name},\n\nYour booking has been successfully created.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${startDateObj.toLocaleString()}\nEnd Date: ${endDateObj.toLocaleString()}\n\nThank you for using our service!`
-    );
+    // const emailSent = await sendEmail(
+    //     userExists.email,
+    //     "Booking Confirmation",
+    //     `Hello ${userExists.name},\n\nYour booking has been successfully created.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${startDateObj.toLocaleString()}\nEnd Date: ${endDateObj.toLocaleString()}\n\nThank you for using our service!`
+    // );
+    // Convert UTC back to Karachi time for email
+const formattedStartDate = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+const formattedEndDate = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+
+const emailSent = await sendEmail(
+    userExists.email,
+    "Booking Confirmation",
+    `Hello ${userExists.name},\n\nYour booking has been successfully created.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${formattedStartDate}\nEnd Date: ${formattedEndDate}\n\nThank you for using our service!`
+);
 
     if (!emailSent) {
         console.error("Failed to send confirmation email.");
