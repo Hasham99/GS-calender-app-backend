@@ -149,9 +149,17 @@ app.use("/", (req, res) => {
               <li>router.route("/booking-history/:id").get(getBookingHistoryByUserIdController);</li>
               <li>router.route("/cleanup").get(autoCleanUpBookingsController);</li>
             </ul>
-            <h4>POST</h4>
+          <h4>POST</h4>
             <ul>
               <li>router.route("/").post(verifyJWT, createBookingController);</li>
+            </ul>
+          <h4>UPDATE</h4>
+            <ul>
+              <li>router.route("/:id").put(verifyJWT, updateBookingController);</li>
+            </ul>
+          <h4>DELETE</h4>
+            <ul>
+              <li>router.route("/:id").delete(verifyJWT, deleteBookingController);</li>
             </ul>            
           </div>
   

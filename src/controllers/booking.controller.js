@@ -161,6 +161,74 @@ const emailSent = await sendEmail(
     // Respond to the client
     return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });
+const updateBookingController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { facility, startDate, endDate, status, conditionsAccepted } = req.body;
+
+    // Find the booking
+    const booking = await Booking.findById(id);
+    if (!booking) {
+        throw new apiError(404, "Booking not found");
+    }
+
+    // Optional: Check for date conflicts if startDate or endDate is being updated
+    if (startDate && endDate) {
+        const startDateObj = new Date(startDate);
+        const endDateObj = new Date(endDate);
+
+        if (startDateObj >= endDateObj) {
+            throw new apiError(400, "Start date must be before end date");
+        }
+
+        const conflict = await Booking.findOne({
+            _id: { $ne: id },
+            facility: facility || booking.facility,
+            $or: [
+                { startDate: { $lt: endDateObj }, endDate: { $gt: startDateObj } },
+                { startDate: { $gte: startDateObj }, endDate: { $lte: endDateObj } },
+            ],
+        });
+
+        if (conflict) {
+            throw new apiError(400, "Booking conflict detected with another booking");
+        }
+
+        booking.startDate = startDateObj;
+        booking.endDate = endDateObj;
+    }
+
+    // Update other fields if provided
+    if (facility) booking.facility = facility;
+    if (status) booking.status = status;
+    if (conditionsAccepted !== undefined) booking.conditionsAccepted = conditionsAccepted;
+
+    await booking.save();
+
+    const updatedBooking = await Booking.findById(id)
+        .populate([{ path: 'facility', select: 'name description' }, { path: 'user', select: 'name email role' }]);
+
+    // Emit event
+    const io = req.app.get("io");
+    io.emit("booking_updated", updatedBooking);
+
+    return res.status(200).json(new apiResponse(200, updatedBooking, "Booking updated successfully"));
+});
+
+const deleteBookingController = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+        throw new apiError(404, "Booking not found");
+    }
+
+    await booking.deleteOne();
+
+    const io = req.app.get("io");
+    io.emit("booking_deleted", { id });
+
+    return res.status(200).json(new apiResponse(200, {}, "Booking deleted successfully"));
+});
 
 const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
     await autoCleanUpBookings(); // Call the shared logic
@@ -280,4 +348,4 @@ const getBookingByIdController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, booking, "Booking retrieved successfully"));
 });
 
-export { createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
+export {updateBookingController, deleteBookingController, createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
