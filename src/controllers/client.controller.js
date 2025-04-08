@@ -10,11 +10,11 @@ import { User } from "../models/user.model.js";
 
 // Controller to create a new client
 export const createClientController = asyncHandler(async (req, res) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, phoneNumber } = req.body;
 
     // Validate required fields
     if (!name || !email || !password) {
-        throw new apiError(400, "All fields (name, email, password) are required");
+        throw new apiError(400, "All fields (name, email, password) are required phoneNumber is optional");
     }
 
     // Check if client already exists with the given email
@@ -31,6 +31,7 @@ export const createClientController = asyncHandler(async (req, res) => {
         name,
         email,
         password: hashedPassword,
+        phoneNumber
     });
 
     // Save the client to the database
@@ -40,11 +41,18 @@ export const createClientController = asyncHandler(async (req, res) => {
 });
 
 // Generate JWT Token function
-const generateToken = (id) => {
-    return jwt.sign({ clientId: id }, process.env.ACCESS_TOKEN_SECRET, {
+// const generateToken = (id) => {
+//     return jwt.sign({ clientId: id }, process.env.ACCESS_TOKEN_SECRET, {
+//         expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+//     });
+// };
+
+const generateToken = (id, role = "client", type = "client") => {
+    return jwt.sign({ id, role, type }, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
     });
 };
+
 
 // Login Client Controller
 export const loginClientController = asyncHandler(async (req, res) => {
@@ -104,6 +112,31 @@ export const getClientsController = asyncHandler(async (req, res) => {
 
     // Find the client and populate its users field
     const client = await Client.findById(clientId)
+        .populate({
+            path: "users", // Populate the 'users' field in the Client model
+            select: "id name email role createdBy", // Select only the necessary fields
+            populate: {
+                path: "createdBy", // Populate the 'createdBy' field for each user
+                select: "id name email role", // Select specific fields from the creator
+            },
+        })
+        .select("-password"); // Exclude the password field from the client
+
+    if (!client) {
+        throw new apiError(404, "Client not found");
+    }
+
+    res.status(200).json(
+        new apiResponse(200, client, "Client and users retrieved successfully")
+    );
+});
+
+// Get All Clients Controller
+export const getAllClientsController = asyncHandler(async (req, res) => {
+    
+
+    // Find the client and populate its users field
+    const client = await Client.find()
         .populate({
             path: "users", // Populate the 'users' field in the Client model
             select: "id name email role createdBy", // Select only the necessary fields

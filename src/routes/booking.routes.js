@@ -7,7 +7,7 @@ import { autoCleanUpBookingsController, getBookingHistoryController } from "../c
 const router = Router();
 
 // Create a new booking
-router.route("/").post(verifyJWT, createBookingController);
+router.route("/").post( createBookingController);
 
 //delete booking by id
 router.route("/:id").delete(verifyJWT, deleteBookingController);

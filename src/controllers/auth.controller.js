@@ -11,11 +11,18 @@ import { Client } from "../models/client.model.js";
 dotenv.config();
 
 // Function to generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.ACCESS_TOKEN_SECRET, {
-    expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+// const generateToken = (userId) => {
+//   return jwt.sign({ id: userId }, process.env.ACCESS_TOKEN_SECRET, {
+//     expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
+//   });
+// };
+// Generate JWT Token function
+const generateToken = (id, type, role) => {
+  return jwt.sign({ id, type, role }, process.env.ACCESS_TOKEN_SECRET, {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
   });
 };
+
 
 export const getAllUsersByRoleController = asyncHandler(async (req, res) => {
   // params userType get from url
@@ -50,6 +57,30 @@ export const getAllUsersController = asyncHandler(async (req, res) => {
   res
     .status(200)
     .json(new apiResponse(200, users, "All users fetched successfully"));
+});
+export const getUsersByClientIdController = asyncHandler(async (req, res) => {
+  // Get clientId from request parameters
+  const { clientId } = req.params;
+
+  // Validate clientId
+  if (!clientId) {
+    throw new apiError(400, "Client ID is required");
+  }
+
+  // Find users belonging to the given clientId
+  const users = await User.find({ clientId })
+    .select("-password -plainPassword -otp") // Exclude sensitive fields
+    .populate("facilities", "_id name description"); // Populate facilities
+
+  // If no users are found
+  if (users.length === 0) {
+    throw new apiError(404, "No users found for this client");
+  }
+
+  // Respond with the users data
+  res
+    .status(200)
+    .json(new apiResponse(200, users, "Users fetched successfully for the client"));
 });
 // Controller for adding a new admin (temporary route without authentication)
 export const addAdminController = asyncHandler(async (req, res) => {
@@ -151,11 +182,10 @@ export const registerControllerByAdminClient = asyncHandler(
       email,
       password,
       phoneNumber,
-      role,
-      facilityIds,
-      valid,
-      createdBy,
+      valid
     } = req.body;
+
+    const createdBy = req.user?._id; // 🔥 extracted from token
 
     if (!clientId || !name || !email || !password || !phoneNumber) {
       throw new apiError(
@@ -165,12 +195,12 @@ export const registerControllerByAdminClient = asyncHandler(
     }
 
     // Check if the role is valid
-    if (role && !["user", "admin"].includes(role)) {
-      throw new apiError(
-        400,
-        "Invalid role. Role must be either 'user' or 'admin'."
-      );
-    }
+    // if (role && !["user", "admin"].includes(role)) {
+    //   throw new apiError(
+    //     400,
+    //     "Invalid role. Role must be either 'user' or 'admin'."
+    //   );
+    // }
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -186,10 +216,10 @@ export const registerControllerByAdminClient = asyncHandler(
       password: hashedPassword,
       plainPassword: password, // Store plain password temporarily
       phoneNumber,
-      role: role || "user", // Default to "user" if no role is specified
+      role: "admin", // fixed for admin
       valid: valid || false,
-      facilities: facilityIds || [],
-      createdBy: createdBy || null, // Reference the user who created this user
+      facilities: [],
+      createdBy, // Reference the user who created this user
     });
     // Push the user into the Client's users array
     await Client.findByIdAndUpdate(clientId, {
@@ -320,15 +350,16 @@ export const selfRegisterController = asyncHandler(async (req, res) => {
     throw new apiError(400, "All fields are required.");
   }
 
-  // Check if email is already in use
-  const existingUserEmail = await User.findOne({ email });
+  // Check if email already exists under this client
+  const existingUserEmail = await User.findOne({ email, clientId });
   if (existingUserEmail) {
-    throw new apiError(400, "User with this email already exists.");
+    throw new apiError(400, "User with this email already exists for this client.");
   }
-  // Check if email is already in use
-  const existingUserPhoneNo = await User.findOne({ phoneNumber });
+
+  // Check if phone number already exists under this client
+  const existingUserPhoneNo = await User.findOne({ phoneNumber, clientId });
   if (existingUserPhoneNo) {
-    throw new apiError(400, "User with this phoneNumber already exists.");
+    throw new apiError(400, "User with this phone number already exists for this client.");
   }
 
   // Hash password
@@ -342,7 +373,8 @@ export const selfRegisterController = asyncHandler(async (req, res) => {
     password: hashedPassword,
     phoneNumber,
     // role: role || "user",
-    facilities: ["67e2606adc8d9dad40f4b152","67e2602adc8d9dad40f4b14a"],
+    // facilities: ["67e2606adc8d9dad40f4b152","67e2602adc8d9dad40f4b14a"],
+    facilities: [],
     valid: true, // User is immediately valid
   });
 
@@ -351,8 +383,12 @@ export const selfRegisterController = asyncHandler(async (req, res) => {
   // await sendEmail(email, "Welcome to Bookable App", emailContent);
 
   // res.status(201).json(new apiResponse(201, { newUser }, "User registered successfully."));
-  // Generate JWT token
-  const token = generateToken(newUser._id);
+
+  // Determine the user type
+  const userType = newUser.role === 'client' ? 'client' : 'user';  // Determine type based on role
+
+  // Generate JWT token for the user (client or regular user)
+  const token = generateToken(newUser._id, userType, newUser.role);  // Add 'type' and 'role' to the token payload
 
   // Fetch full user data without password
   const registeredUser = await User.findById(newUser._id)
@@ -363,6 +399,10 @@ export const selfRegisterController = asyncHandler(async (req, res) => {
   const emailContent = `Hello ${name},\n\nYour account has been successfully registered on Bookable.\n\nYou can now log in using your email and password.`;
   await sendEmail(email, "Welcome to Bookable App", emailContent);
 
+  // Push the user into the Client's users array
+  await Client.findByIdAndUpdate(clientId, {
+    $push: { users: newUser._id },
+  });
   // Send login response
   res
     .status(201)
@@ -600,28 +640,24 @@ export const loginController = asyncHandler(async (req, res) => {
     throw new apiError(400, "Email and password are required");
   }
 
-  console.log("Login attempt for email:", email); // Log the email for debugging
-
   // Find the user by email
   const user = await User.findOne({ email });
   if (!user) {
-    console.log("User not found");
     throw new apiError(401, "Invalid email or password");
   }
-
-  console.log("User found:", user._id); // Log the user object (excluding password)
 
   // Compare the password entered during login (plain text) with the stored hashed password
   const matchPassword = await comparePassword(password, user.password);
   if (!matchPassword) {
-    console.log("Password mismatch:", password, user.password); // Log the mismatch for debugging
     throw new apiError(401, "Invalid email or password");
   }
 
-  console.log("Password match successful".bgGreen.black); // Log the successful match
+  // Determine the user type
+  const userType = user.role === 'client' ? 'client' : 'user';  // Determine type based on role
 
-  // Generate JWT token for the user
-  const token = generateToken(user._id);
+  // Generate JWT token for the user (client or regular user)
+  const token = generateToken(user._id, userType, user.role);  // Add 'type' and 'role' to the token payload
+  
   const loggedInUser = await User.findById(user._id)
     .select("-password")
     .populate("facilities", "_id name description");
@@ -679,3 +715,33 @@ export const deleteUserByIdController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiResponse(200, user, "User deleted successfully"));
 });
+// export const deleteUserByIdController = asyncHandler(async (req, res) => {
+//   const { id, clientId } = req.params; // Get both user and clientId from URL params
+
+//   // Check if the request is made by the client or admin user
+//   if (req.client) {
+//     // If the request is made by a client, ensure the clientId matches the client in the token
+//     if (req.client.id.toString() !== clientId.toString()) {
+//       throw new apiError(403, "Access denied. You do not have permission to delete this user.");
+//     }
+//   }
+
+//   // If the request is made by an admin user, proceed with deletion
+//   if (req.user) {
+//     // Ensure that only an admin can delete the user
+//     if (req.user.role !== "admin") {
+//       throw new apiError(403, "Access denied. Only admins can perform this action.");
+//     }
+//   }
+
+//   const user = await User.findById(id);
+
+//   if (!user) {
+//     throw new apiError(404, "User not found");
+//   }
+
+//   await user.deleteOne();
+//   return res
+//     .status(200)
+//     .json(new apiResponse(200, user, "User deleted successfully"));
+// });

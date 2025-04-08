@@ -3,11 +3,7 @@ import { apiResponse } from "../utils/apiResponse.js";
 import { Facility } from "../models/facility.model.js";
 import { apiError } from "../utils/apiError.js";
 
-// Get all facilities
-const getFacilitiesController = asyncHandler(async (req, res) => {
-    const facilities = await Facility.find();
-    return res.status(200).json(new apiResponse(200, facilities, "Facilities fetched successfully"));
-});
+
 // Get all facilities by Id
 const getFacilitiesByIdController = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -17,6 +13,19 @@ const getFacilitiesByIdController = asyncHandler(async (req, res) => {
         throw new apiError(404, "Facility not found");
     }
     return res.status(200).json(new apiResponse(200, facilities, "Facilities fetched successfully"));
+});
+const getFacilitiesByClientIdController = asyncHandler(async (req, res) => {
+    const { clientId } = req.params;
+
+    if (!clientId) {
+        throw new apiError(400, "Client ID is required in params");
+    }
+
+    const facilities = await Facility.find({ clientId });
+
+    return res
+        .status(200)
+        .json(new apiResponse(200, facilities, "Facilities fetched successfully"));
 });
 
 // Delete a facility
@@ -37,7 +46,7 @@ const deleteFacilityController = asyncHandler(async (req, res) => {
 
 // Create a new facility
 const createFacilityController = asyncHandler(async (req, res) => {
-    const { clientId, name, description } = req.body;
+    const { clientId, name, description,availability } = req.body;
 
     // Validate required fields
     if (!clientId || !name) {
@@ -49,7 +58,7 @@ const createFacilityController = asyncHandler(async (req, res) => {
         clientId,
         name,
         description,
-        availability: true, // By default, the facility is available
+        availability, // By default, the facility is available
     });
 
     // Save the facility to the database
@@ -58,4 +67,4 @@ const createFacilityController = asyncHandler(async (req, res) => {
     return res.status(201).json(new apiResponse(201, newFacility, "Facility created successfully"));
 });
 
-export { getFacilitiesController, createFacilityController, deleteFacilityController, getFacilitiesByIdController };
+export {getFacilitiesByClientIdController, createFacilityController, deleteFacilityController, getFacilitiesByIdController };

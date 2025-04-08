@@ -1,16 +1,16 @@
 import { Router } from "express";
 import {
-    getFacilitiesController, createFacilityController, deleteFacilityController, getFacilitiesByIdController
+     createFacilityController, deleteFacilityController, getFacilitiesByIdController,
+    getFacilitiesByClientIdController
 } from "../controllers/facility.controller.js";
-import { verifyJWT, authorizeRoles } from "../middlewares/auth.middleware.js";
+import { verifyJWT, authorizeRoles, verifyClientOrAdmin } from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Get all facilities
-router.route("/").get(getFacilitiesController);
-router.route("/:id").get(verifyJWT, getFacilitiesByIdController);
-router.route("/:id").delete(verifyJWT, deleteFacilityController);
-router.route("/").post(verifyJWT, authorizeRoles("admin"), createFacilityController);
+// Get all facilities by Client Id
+router.route("/:clientId").get( getFacilitiesByClientIdController);
+router.route("/:id").delete(verifyJWT, verifyClientOrAdmin, deleteFacilityController);
+router.route("/").post(verifyJWT, verifyClientOrAdmin, createFacilityController);
 
 
 export default router;
