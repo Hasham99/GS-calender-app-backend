@@ -7,7 +7,7 @@ const router = Router();
 // Get all facilities by Client Id
 router.route("/").get(getLimitationController);
 // router.route("/").get(getAllLimitationController);
-router.route("/").post(createOrUpdateLimitationController);
+router.route("/").post(verifyJWT,verifyClientOrAdmin,createOrUpdateLimitationController);
 
 // router.route("/:id").delete(verifyJWT, verifyClientOrAdmin, deleteFacilityController);
 // router.route("/").post(verifyJWT, verifyClientOrAdmin, createFacilityController);

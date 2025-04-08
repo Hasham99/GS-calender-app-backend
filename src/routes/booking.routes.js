@@ -7,7 +7,7 @@ import { autoCleanUpBookingsController, getBookingHistoryController } from "../c
 const router = Router();
 
 // Create a new booking
-router.route("/").post( createBookingController);
+router.route("/").post(verifyJWT, createBookingController);
 
 //delete booking by id
 router.route("/:id").delete(verifyJWT, deleteBookingController);
@@ -16,12 +16,12 @@ router.route("/:id").delete(verifyJWT, deleteBookingController);
 router.route("/:id").put(verifyJWT, updateBookingController);
 
 // Get all bookings (optional)
-router.route("/").get(getBookingsController);
+router.route("/").get(verifyJWT,getBookingsController);
 
 // Get Booking History
-router.route("/booking-history").get(getBookingHistoryController);
+router.route("/booking-history").get(verifyJWT,getBookingHistoryController);
 
-router.route("/booking-history/:id").get(getBookingHistoryByUserIdController);
+router.route("/booking-history/:id").get(verifyJWT,getBookingHistoryByUserIdController);
 
 // Manual endpoint to trigger cleanup
 router.route("/cleanup").get(autoCleanUpBookingsController);

@@ -8,7 +8,7 @@ import { verifyJWT, authorizeRoles, verifyClientOrAdmin } from "../middlewares/a
 const router = Router();
 
 // Get all facilities by Client Id
-router.route("/:clientId").get( getFacilitiesByClientIdController);
+router.route("/:clientId").get(verifyJWT, getFacilitiesByClientIdController);
 router.route("/:id").delete(verifyJWT, verifyClientOrAdmin, deleteFacilityController);
 router.route("/").post(verifyJWT, verifyClientOrAdmin, createFacilityController);
 
