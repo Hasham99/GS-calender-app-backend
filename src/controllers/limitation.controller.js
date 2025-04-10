@@ -113,7 +113,8 @@ const getAllLimitationController = asyncHandler(async (req, res) => {
 // });
 
 const getLimitationController = asyncHandler(async (req, res) => {
-    const { clientId, userId, facilityId } = req.body;
+    // const { clientId, userId, facilityId } = req.body;
+    const { clientId, userId, facilityId } = req.params;
   
     const query = { clientId, user: userId };
     const limitation = await Limitation.findOne(query);

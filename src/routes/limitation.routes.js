@@ -5,7 +5,7 @@ import { getLimitationController,getAllLimitationController, createOrUpdateLimit
 const router = Router();
 
 // Get all facilities by Client Id
-router.route("/").get(getLimitationController);
+router.route("/:clientId/:userId/:facilityId").get(getLimitationController);
 // router.route("/").get(getAllLimitationController);
 router.route("/").post(verifyJWT,verifyClientOrAdmin,createOrUpdateLimitationController);
 
