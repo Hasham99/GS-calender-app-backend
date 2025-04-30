@@ -10,6 +10,7 @@ import colors from "colors";
 import { sendEmail } from "../utils/emailService.js";
 import cron from "node-cron";
 import { getLimitationForUserFacility } from "./limitation.controller.js";
+import { BookingLog } from "../models/BookingLog.model.js";
 
 
 colors.enable();
@@ -165,7 +166,7 @@ const getBookingsControllerPer = asyncHandler(async (req, res) => {
 
 const createBookingController = asyncHandler(async (req, res) => {
     const { clientId, facility, user, startDate, endDate, conditionsAccepted } = req.body;
-
+    try {
     // Validate required fields
     if (!clientId || !facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
         throw new apiError(400, "All fields are required");
@@ -289,8 +290,36 @@ const createBookingController = asyncHandler(async (req, res) => {
         console.error("The 6-hour reminder time has already passed. Reminder not scheduled.");
     }
 
+    // ✅ Log Success
+    await BookingLog.create({
+        clientId,
+        user,
+        facility,
+        status: "success",
+        message: "Booking created successfully",
+        data: { bookingId: newBooking._id }
+      });
+
     // Respond to the client
     return res.status(201).json(new apiResponse(201, populatedBooking, "Booking created successfully"));
+} catch (error) {
+    // ❌ Log error
+    await BookingLog.create({
+        clientId,
+        user,
+        facility,
+        status: "error",
+        message: error.message,
+        data: {
+            stack: error.stack,
+            startDate,
+            endDate,
+            conditionsAccepted
+        }
+    });
+
+    throw new apiError(error.statusCode || 500, error.message, [], error.stack);
+}
 });
 
 const updateBookingController = asyncHandler(async (req, res) => {
@@ -480,4 +509,21 @@ const getBookingByIdController = asyncHandler(async (req, res) => {
     return res.status(200).json(new apiResponse(200, booking, "Booking retrieved successfully"));
 });
 
-export {updateBookingController, deleteBookingController, createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
+const getBookingLogsController = asyncHandler(async (req, res) => {
+    const { status, user, facility, limit = 50, skip = 0 } = req.query;
+
+    const filter = {};
+    if (status) filter.status = status; // e.g., 'error' or 'success'
+    if (user) filter.user = user;
+    if (facility) filter.facility = facility;
+
+    const logs = await BookingLog.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(Number(skip))
+        .limit(Number(limit))
+        .populate("user", "name email")
+        .populate("facility", "name");
+
+    return res.status(200).json(new apiResponse(200, logs, "Booking logs fetched"));
+});
+export {getBookingLogsController, updateBookingController, deleteBookingController, createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
