@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema(
             ref: "Facility",
         }
       ],
+    allowedBooking:{type: Boolean, default: true}, // Whether the user can book
       
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User"  }, // Reference to the user who created this user
     invitedAt: { type: Date, default: Date.now }, // Track when they were invited

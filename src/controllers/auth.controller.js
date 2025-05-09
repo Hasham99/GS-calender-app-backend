@@ -182,7 +182,8 @@ export const registerControllerByAdminClient = asyncHandler(
       email,
       password,
       phoneNumber,
-      valid
+      valid,
+      allowedBooking,
     } = req.body;
 
     const createdBy = req.user?._id; // 🔥 extracted from token
@@ -218,6 +219,7 @@ export const registerControllerByAdminClient = asyncHandler(
       phoneNumber,
       role: "admin", // fixed for admin
       valid: valid || false,
+      allowedBooking,
       facilities: [],
       createdBy, // Reference the user who created this user
     });
