@@ -28,6 +28,9 @@ const io = new Server(server, {
 // Attach Socket.IO to the app for global access
 app.set("io", io);
 
+// Initialize global Map to track reminder timeouts
+app.set("bookingReminderTimeouts", new Map());
+
 io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
