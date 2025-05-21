@@ -274,21 +274,50 @@ const createBookingController = asyncHandler(async (req, res) => {
     const currentTime = new Date().getTime();
     const delay = sixHoursBefore - currentTime; // Calculate delay in milliseconds
 
-    if (delay > 0) {
-        setTimeout(async () => {
-            const emailSentReminder = await sendEmail(
-                userExists.email,
-                "Booking Reminder - 6 Hours Before",
-                `Hello ${userExists.name},\n\nThis is a reminder that your booking is starting in 6 hours.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${formattedStartDate}\nEnd Date: ${formattedEndDate}\n\nWe look forward to seeing you soon!`
-            );
+    // if (delay > 0) {
+    //     setTimeout(async () => {
+    //         const emailSentReminder = await sendEmail(
+    //             userExists.email,
+    //             "Booking Reminder - 6 Hours Before",
+    //             `Hello ${userExists.name},\n\nThis is a reminder that your booking is starting in 6 hours.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${formattedStartDate}\nEnd Date: ${formattedEndDate}\n\nWe look forward to seeing you soon!`
+    //         );
 
-            if (!emailSentReminder) {
-                console.error("Failed to send 6 hours before reminder email.");
-            }
-        }, delay);
-    } else {
-        console.error("The 6-hour reminder time has already passed. Reminder not scheduled.");
-    }
+    //         if (!emailSentReminder) {
+    //             console.error("Failed to send 6 hours before reminder email.");
+    //         }
+    //     }, delay);
+    // } else {
+    //     console.error("The 6-hour reminder time has already passed. Reminder not scheduled.");
+    // }
+    const reminderTimeouts = req.app.get("bookingReminderTimeouts");
+
+if (delay > 0) {
+    const timeoutId = setTimeout(async () => {
+        const stillExists = await Booking.findById(newBooking._id);
+        if (!stillExists) {
+            console.log(`Booking ${newBooking._id} was deleted. Skipping reminder email.`);
+            return;
+        }
+
+        const emailSentReminder = await sendEmail(
+            userExists.email,
+            "Booking Reminder - 6 Hours Before",
+            `Hello ${userExists.name},\n\nThis is a reminder that your booking is starting in 6 hours.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${formattedStartDate}\nEnd Date: ${formattedEndDate}\n\nWe look forward to seeing you soon!`
+        );
+
+        if (!emailSentReminder) {
+            console.error("Failed to send 6 hours before reminder email.");
+        }
+
+        // Clean up after execution
+        reminderTimeouts.delete(newBooking._id.toString());
+    }, delay);
+
+    // Store the timeout so we can clear it if the booking is deleted
+    reminderTimeouts.set(newBooking._id.toString(), timeoutId);
+} else {
+    console.error("The 6-hour reminder time has already passed. Reminder not scheduled.");
+}
 
     // ✅ Log Success
     await BookingLog.create({
@@ -384,6 +413,14 @@ const deleteBookingController = asyncHandler(async (req, res) => {
     }
 
     await booking.deleteOne();
+    // Clear the scheduled reminder timeout
+    const reminderTimeouts = req.app.get("bookingReminderTimeouts");
+    const timeoutId = reminderTimeouts.get(id);
+    if (timeoutId) {
+        clearTimeout(timeoutId);
+        reminderTimeouts.delete(id);
+        console.log(`Cancelled reminder email timeout for booking ${id}`);
+    }
 
     const io = req.app.get("io");
     io.emit("booking_deleted", { id });
