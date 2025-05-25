@@ -41,7 +41,7 @@ export const getAllUsersByIdController = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   // get users having role user
-  const user = await User.findById(id).select("-password");
+  const user = await User.findById(id).select("-password").populate("facilities", "_id name description");
 
   res
     .status(200)
