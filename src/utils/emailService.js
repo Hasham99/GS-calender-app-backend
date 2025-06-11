@@ -23,16 +23,34 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Function to send an email
-export const sendEmail = async (to, subject, text) => {
-    try {
-        const info = await transporter.sendMail({
-            from: process.env.EMAIL_USER, // Sender address
-            to, // Receiver's email address
-            subject, // Subject of the email
-            text, // Email body
-        });
+// Function to send an email raw text
+// export const sendEmail = async (to, subject, text) => {
+//     try {
+//         const info = await transporter.sendMail({
+//             from: process.env.EMAIL_USER, // Sender address
+//             to, // Receiver's email address
+//             subject, // Subject of the email
+//             text, // Email body
+//         });
 
+//         console.log("Email sent:", info.response);
+//         return true;
+//     } catch (error) {
+//         console.error("Error sending email:", error);
+//         return false;
+//     }
+// };
+
+export const sendEmail = async (to, subject, content, isHtml = false) => {
+    try {
+        const mailOptions = {
+            from: process.env.EMAIL_USER,
+            to,
+            subject,
+            [isHtml ? "html" : "text"]: content, // Dynamically set html or text field
+        };
+
+        const info = await transporter.sendMail(mailOptions);
         console.log("Email sent:", info.response);
         return true;
     } catch (error) {
@@ -40,3 +58,4 @@ export const sendEmail = async (to, subject, text) => {
         return false;
     }
 };
+

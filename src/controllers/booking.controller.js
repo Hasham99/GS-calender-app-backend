@@ -255,15 +255,62 @@ const createBookingController = asyncHandler(async (req, res) => {
     io.emit("booking_created", populatedBooking);
     console.log("New booking created and emitted:", populatedBooking._id);
 
-    // Send confirmation email to the user
-    const formattedStartDate = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
-    const formattedEndDate = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    // // Send confirmation email to the user
+    // const formattedStartDate = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    // const formattedEndDate = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
 
-    const emailSent = await sendEmail(
-        userExists.email,
-        "Booking Confirmation",
-        `Hello ${userExists.name},\n\nYour booking has been successfully created.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${formattedStartDate}\nEnd Date: ${formattedEndDate}\n\nThank you for using our service!`
-    );
+    // const emailSent = await sendEmail(
+    //     userExists.email,
+    //     "Booking Confirmation",
+    //     `Hello ${userExists.name},\n\nYour booking has been successfully created.\n\nBooking details:\nFacility: ${facilityExists.name}\nStart Date: ${formattedStartDate}\nEnd Date: ${formattedEndDate}\n\nThank you for using our service!`
+    // );
+
+    // Format dates for email and Google Calendar
+const formattedStartDate = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+const formattedEndDate = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+
+// Format for Google Calendar (UTC)
+const startUtcISO = moment.utc(startDateObj).format("YYYYMMDDTHHmmss") + "Z";
+const endUtcISO = moment.utc(endDateObj).format("YYYYMMDDTHHmmss") + "Z";
+
+// Google Calendar Link
+const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+  `Booking at ${facilityExists.name}`
+)}&dates=${startUtcISO}/${endUtcISO}&details=${encodeURIComponent(
+  `Booking from ${formattedStartDate} to ${formattedEndDate} (Asia/Karachi Time)\n\nFacility: ${facilityExists.name}`
+)}&location=${encodeURIComponent(
+  "https://yourbookingapp.com/facility/" + facilityExists._id
+)}&sf=true&output=xml`;
+
+// Email content with Google Calendar link
+const emailHtml = `
+  <p>Hello ${userExists.name},</p>
+  <p>Your booking has been successfully created.</p>
+
+  <p><strong>Booking Details:</strong><br/>
+  Facility: ${facilityExists.name}<br/>
+  Start Date (Asia/Karachi): ${formattedStartDate}<br/>
+  End Date (Asia/Karachi): ${formattedEndDate}</p>
+
+  <p>
+    <a href="${calendarLink}" target="_blank" style="display:inline-block;margin-top:10px;">
+      <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+           alt="Add to Google Calendar" 
+           style="vertical-align:middle;margin-right:8px;" />
+      Add to Google Calendar
+    </a>
+  </p>
+
+  <p>Thank you for using our service!</p>
+`;
+
+const emailSent = await sendEmail(
+  userExists.email,
+  "Booking Confirmation",
+  emailHtml,
+  true
+);
+
 
     if (!emailSent) {
         console.error("Failed to send confirmation email.");
@@ -350,6 +397,113 @@ if (delay > 0) {
     throw new apiError(error.statusCode || 500, error.message, [], error.stack);
 }
 });
+
+const testEmailTemplateController01 = asyncHandler(async (req, res) => {
+    const testEmail = "hashamullah.dev@gmail.com"; // Replace with your actual test email
+
+    // Static test data
+    const userName = "Test User";
+    const facilityName = "Test Facility";
+    const facilityId = "abc123";
+    const startDateObj = new Date(); // Now
+    const endDateObj = new Date(Date.now() + 60 * 60 * 1000); // 1 hour later
+
+    const formattedStartDate = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    const formattedEndDate = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+
+    // Create Google Calendar link
+    const startUTC = moment.utc(startDateObj).format("YYYYMMDDTHHmmss") + "Z";
+    const endUTC = moment.utc(endDateObj).format("YYYYMMDDTHHmmss") + "Z";
+
+    const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent("Booking at " + facilityName)}&dates=${startUTC}/${endUTC}&details=${encodeURIComponent("Booking at " + facilityName + " from " + formattedStartDate + " to " + formattedEndDate)}&location=${encodeURIComponent("https://yourbookingapp.com/facility/" + facilityId)}&sf=true&output=xml`;
+
+    const emailHtml = `
+        <p>Hello ${userName},</p>
+        <p>Your booking has been successfully created.</p>
+        <p><strong>Booking details:</strong><br/>
+        Facility: ${facilityName}<br/>
+        Start Date: ${formattedStartDate}<br/>
+        End Date: ${formattedEndDate}</p>
+
+        <p>Click below to add this booking to your Google Calendar:</p>
+        <a href="${calendarLink}" target="_blank">
+            <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_24_2x.png" alt="Add to Google Calendar" style="height:40px;" />
+        </a>
+
+        <p>Thank you for using our service!</p>
+    `;
+
+    const emailSent = await sendEmail(testEmail, "Test Booking Confirmation", emailHtml, true);
+
+    if (!emailSent) {
+        return res.status(500).json({ success: false, message: "Failed to send test email" });
+    }
+
+    return res.status(200).json({ success: true, message: "Test email sent successfully to " + testEmail });
+});
+
+const testEmailTemplateController = asyncHandler(async (req, res) => {
+    const testEmail = "hashamullah.dev@gmail.com";
+
+    const userName = "Test User";
+    const facilityName = "Test Facility";
+    const facilityId = "abc123";
+
+    // Assume input is in Asia/Karachi time zone
+    const inputTimezone = "Asia/Karachi";
+
+    // Fixed test start and end times in Asia/Karachi
+    const startDateLocal = moment.tz("2025-06-11 06:30", "YYYY-MM-DD HH:mm", inputTimezone);
+    const endDateLocal = startDateLocal.clone().add(1, "hour");
+
+    // For display in email
+    const formattedStartLocal = startDateLocal.format("YYYY-MM-DD hh:mm A z");
+    const formattedEndLocal = endDateLocal.format("YYYY-MM-DD hh:mm A z");
+
+    const formattedStartUTC = startDateLocal.clone().utc().format("YYYY-MM-DD HH:mm [UTC]");
+    const formattedEndUTC = endDateLocal.clone().utc().format("YYYY-MM-DD HH:mm [UTC]");
+
+    // Google Calendar format: UTC ISO 8601 with 'Z' to denote UTC time
+    const startUtcISO = startDateLocal.clone().utc().format("YYYYMMDDTHHmmss") + "Z";
+    const endUtcISO = endDateLocal.clone().utc().format("YYYYMMDDTHHmmss") + "Z";
+
+    const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+        "Booking at " + facilityName
+    )}&dates=${startUtcISO}/${endUtcISO}&details=${encodeURIComponent(
+        `Booking at ${facilityName} from ${formattedStartLocal} to ${formattedEndLocal} (${inputTimezone})\n` +
+        `Corresponding UTC time: ${formattedStartUTC} to ${formattedEndUTC}`
+    )}&location=${encodeURIComponent(
+        "https://yourbookingapp.com/facility/" + facilityId
+    )}&sf=true&output=xml`;
+
+    const emailHtml = `
+        <p>Hello ${userName},</p>
+        <p>Your booking has been successfully created.</p>
+        <p><strong>Booking details:</strong><br/>
+        Facility: ${facilityName}<br/>
+        Start Date (${inputTimezone}): ${formattedStartLocal}<br/>
+        End Date (${inputTimezone}): ${formattedEndLocal}<br/>
+        <br/>
+        Start Date (UTC): ${formattedStartUTC}<br/>
+        End Date (UTC): ${formattedEndUTC}</p>
+
+        <p><strong>Add this booking to your Google Calendar:</strong></p>
+        <a href="${calendarLink}" target="_blank" style="display:inline-block;padding:10px 15px;background:#4285f4;color:#fff;text-decoration:none;border-radius:4px;">
+            Add to Google Calendar
+        </a>
+
+        <p>Thank you for using our service!</p>
+    `;
+
+    const emailSent = await sendEmail(testEmail, "Test Booking Confirmation", emailHtml, true);
+
+    if (!emailSent) {
+        return res.status(500).json({ success: false, message: "Failed to send test email" });
+    }
+
+    return res.status(200).json({ success: true, message: "Test email sent successfully to " + testEmail });
+});
+
 
 const updateBookingController = asyncHandler(async (req, res) => {
     const { id } = req.params;
@@ -563,4 +717,4 @@ const getBookingLogsController = asyncHandler(async (req, res) => {
 
     return res.status(200).json(new apiResponse(200, logs, "Booking logs fetched"));
 });
-export {getBookingLogsController, updateBookingController, deleteBookingController, createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
+export {testEmailTemplateController,getBookingLogsController, updateBookingController, deleteBookingController, createBookingController, getBookingsController, getBookingByIdController, autoCleanUpBookingsController, autoCleanUpBookings, getBookingHistoryController, getBookingHistoryByIdController, getBookingHistoryByUserIdController };
