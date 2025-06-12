@@ -283,25 +283,60 @@ const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLAT
 )}&sf=true&output=xml`;
 
 // Email content with Google Calendar link
+// const emailHtml = `
+//   <p>Hello ${userExists.name},</p>
+//   <p>Your booking has been successfully created.</p>
+
+//   <p><strong>Booking Details:</strong><br/>
+//   Facility: ${facilityExists.name}<br/>
+//   Start Date (Asia/Karachi): ${formattedStartDate}<br/>
+//   End Date (Asia/Karachi): ${formattedEndDate}</p>
+
+//   <p>
+//     <a href="${calendarLink}" target="_blank" style="display:inline-block;margin-top:10px;">
+//       <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+//            alt="Add to Google Calendar" 
+//            style="vertical-align:middle;margin-right:8px;" />
+//       Add to Google Calendar
+//     </a>
+//   </p>
+
+//   <p>Thank you for using our service!</p>
+// `;
+
 const emailHtml = `
-  <p>Hello ${userExists.name},</p>
-  <p>Your booking has been successfully created.</p>
+  <div style="font-family: Arial, sans-serif; padding: 20px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #ddd;">
+      <tr>
+        <td style="padding: 30px;">
+          <h2 style="color: #333333; text-align: center;">Booking Confirmation</h2>
+          <p style="font-size: 16px; color: #333;">Hello <strong>${userExists.name}</strong>,</p>
+          <p style="font-size: 16px; color: #333;">
+            Your booking has been <strong>successfully created</strong>. Below are your booking details:
+          </p>
 
-  <p><strong>Booking Details:</strong><br/>
-  Facility: ${facilityExists.name}<br/>
-  Start Date (Asia/Karachi): ${formattedStartDate}<br/>
-  End Date (Asia/Karachi): ${formattedEndDate}</p>
+          <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color: #fafafa; border: 1px solid #e1e1e1; border-radius: 6px; margin: 12px 0; line-height: 1;">
+            <tr><td style="font-size: 15px;"><strong>Facility:</strong> ${facilityExists.name}</td></tr>
+            <tr><td style="font-size: 15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</td></tr>
+            <tr><td style="font-size: 15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</td></tr>
+          </table>
 
-  <p>
-    <a href="${calendarLink}" target="_blank" style="display:inline-block;margin-top:10px;">
-      <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
-           alt="Add to Google Calendar" 
-           style="vertical-align:middle;margin-right:8px;" />
-      Add to Google Calendar
-    </a>
-  </p>
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${calendarLink}" target="_blank" style="display: inline-block; padding: 12px 20px; background-color: #333; color: #fff; text-decoration: none; border-radius: 5px; font-size: 16px;">
+              <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+                   alt="Google Calendar" 
+                   style="vertical-align: middle; width: 24px; height: 24px; margin-right: 8px;" />
+              Add to Google Calendar
+            </a>
+          </div>
 
-  <p>Thank you for using our service!</p>
+          <p style="font-size: 14px; color: #888; text-align: center; margin-top: 40px;">
+            Thank you for using our service!
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>
 `;
 
 const emailSent = await sendEmail(
@@ -443,65 +478,106 @@ const testEmailTemplateController01 = asyncHandler(async (req, res) => {
 });
 
 const testEmailTemplateController = asyncHandler(async (req, res) => {
-    const testEmail = "hashamullah.dev@gmail.com";
+    // Dummy data
+    const userExists = { name: "Test User", email: "hashamullah.dev@gmail.com" };
+    const facilityExists = { name: "Test Facility", id: "abc123" };
 
-    const userName = "Test User";
-    const facilityName = "Test Facility";
-    const facilityId = "abc123";
-
-    // Assume input is in Asia/Karachi time zone
     const inputTimezone = "Asia/Karachi";
 
-    // Fixed test start and end times in Asia/Karachi
+    // Test booking time in Asia/Karachi
     const startDateLocal = moment.tz("2025-06-11 06:30", "YYYY-MM-DD HH:mm", inputTimezone);
     const endDateLocal = startDateLocal.clone().add(1, "hour");
 
-    // For display in email
-    const formattedStartLocal = startDateLocal.format("YYYY-MM-DD hh:mm A z");
-    const formattedEndLocal = endDateLocal.format("YYYY-MM-DD hh:mm A z");
+    // Format for display
+    const formattedStartDate = startDateLocal.format("YYYY-MM-DD hh:mm A z");
+    const formattedEndDate = endDateLocal.format("YYYY-MM-DD hh:mm A z");
 
-    const formattedStartUTC = startDateLocal.clone().utc().format("YYYY-MM-DD HH:mm [UTC]");
-    const formattedEndUTC = endDateLocal.clone().utc().format("YYYY-MM-DD HH:mm [UTC]");
-
-    // Google Calendar format: UTC ISO 8601 with 'Z' to denote UTC time
+    // Format for Google Calendar link (UTC ISO 8601)
     const startUtcISO = startDateLocal.clone().utc().format("YYYYMMDDTHHmmss") + "Z";
     const endUtcISO = endDateLocal.clone().utc().format("YYYYMMDDTHHmmss") + "Z";
 
     const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
-        "Booking at " + facilityName
+        "Booking at " + facilityExists.name
     )}&dates=${startUtcISO}/${endUtcISO}&details=${encodeURIComponent(
-        `Booking at ${facilityName} from ${formattedStartLocal} to ${formattedEndLocal} (${inputTimezone})\n` +
-        `Corresponding UTC time: ${formattedStartUTC} to ${formattedEndUTC}`
+        `Booking at ${facilityExists.name} from ${formattedStartDate} to ${formattedEndDate} (${inputTimezone})`
     )}&location=${encodeURIComponent(
-        "https://yourbookingapp.com/facility/" + facilityId
+        `https://yourbookingapp.com/facility/${facilityExists.id}`
     )}&sf=true&output=xml`;
 
-    const emailHtml = `
-        <p>Hello ${userName},</p>
-        <p>Your booking has been successfully created.</p>
-        <p><strong>Booking details:</strong><br/>
-        Facility: ${facilityName}<br/>
-        Start Date (${inputTimezone}): ${formattedStartLocal}<br/>
-        End Date (${inputTimezone}): ${formattedEndLocal}<br/>
-        <br/>
-        Start Date (UTC): ${formattedStartUTC}<br/>
-        End Date (UTC): ${formattedEndUTC}</p>
+    // Email HTML content
+        const emailHtml01 = `
+    <div style="font-family: Arial, sans-serif;  padding: 20px;">
+        <div style="max-width: 80%; margin: auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 10px 0 rgba(0, 0, 0, 0.1), 0 2px 10px 0 rgba(0, 0, 0, 0.1) !important; padding: 30px;">
+        <h2 style="color: #333333; text-align: center;">Booking Confirmation</h2>
+        <p style="font-size: 16px; color: #333;">Hello <strong>${userExists.name}</strong>,</p>
+        <p style="font-size: 16px; color: #333;">
+            Your booking has been <strong>successfully created</strong>. Below are your booking details:
+        </p>
 
-        <p><strong>Add this booking to your Google Calendar:</strong></p>
-        <a href="${calendarLink}" target="_blank" style="display:inline-block;padding:10px 15px;background:#4285f4;color:#fff;text-decoration:none;border-radius:4px;">
+        <div style="border: 1px solid #e1e1e1; border-radius: 6px; padding: 15px; margin: 20px 0; background-color: #fafafa;">
+            <p style="margin: 0; font-size: 15px;"><strong>Facility:</strong> ${facilityExists.name}</p>
+            <p style="margin: 0; font-size: 15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</p>
+            <p style="margin: 0; font-size: 15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</p>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="${calendarLink}" target="_blank" style="display: inline-block; padding: 12px 20px; background-color: #333; color: #fff; text-decoration: none; border-radius: 5px; font-size: 16px;">
+            <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+                alt="Google Calendar" 
+                style="vertical-align: middle; width: 24px; height: 24px; margin-right: 8px;" />
             Add to Google Calendar
-        </a>
+            </a>
+        </div>
 
-        <p>Thank you for using our service!</p>
+        <p style="font-size: 14px; color: #888; text-align: center; margin-top: 40px;">
+            Thank you for using our service!
+        </p>
+        </div>
+    </div>
     `;
+const emailHtml = `
+  <div style="font-family: Arial, sans-serif; padding: 20px;">
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #ddd;">
+      <tr>
+        <td style="padding: 30px;">
+          <h2 style="color: #333333; text-align: center;">Booking Confirmation</h2>
+          <p style="font-size: 16px; color: #333;">Hello <strong>${userExists.name}</strong>,</p>
+          <p style="font-size: 16px; color: #333;">
+            Your booking has been <strong>successfully created</strong>. Below are your booking details:
+          </p>
 
-    const emailSent = await sendEmail(testEmail, "Test Booking Confirmation", emailHtml, true);
+          <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color: #fafafa; border: 1px solid #e1e1e1; border-radius: 6px; margin: 12px 0; line-height: 1;">
+            <tr><td style="font-size: 15px;"><strong>Facility:</strong> ${facilityExists.name}</td></tr>
+            <tr><td style="font-size: 15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</td></tr>
+            <tr><td style="font-size: 15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</td></tr>
+          </table>
+
+          <div style="text-align: center; margin-top: 30px;">
+            <a href="${calendarLink}" target="_blank" style="display: inline-block; padding: 12px 20px; background-color: #333; color: #fff; text-decoration: none; border-radius: 5px; font-size: 16px;">
+              <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+                   alt="Google Calendar" 
+                   style="vertical-align: middle; width: 24px; height: 24px; margin-right: 8px;" />
+              Add to Google Calendar
+            </a>
+          </div>
+
+          <p style="font-size: 14px; color: #888; text-align: center; margin-top: 40px;">
+            Thank you for using our service!
+          </p>
+        </td>
+      </tr>
+    </table>
+  </div>
+`;
+
+
+    const emailSent = await sendEmail(userExists.email, "Test Booking Confirmation", emailHtml, true);
 
     if (!emailSent) {
         return res.status(500).json({ success: false, message: "Failed to send test email" });
     }
 
-    return res.status(200).json({ success: true, message: "Test email sent successfully to " + testEmail });
+    return res.status(200).json({ success: true, message: `Test email sent successfully to ${userExists.email}` });
 });
 
 
