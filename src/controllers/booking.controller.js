@@ -304,7 +304,7 @@ const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLAT
 //   <p>Thank you for using our service!</p>
 // `;
 
-const emailHtml = `
+const emailHtml01 = `
   <div style="font-family: Arial, sans-serif; padding: 20px;">
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 600px; margin: auto; background-color: #ffffff; border-radius: 8px; border: 1px solid #ddd;">
       <tr>
@@ -338,6 +338,53 @@ const emailHtml = `
     </table>
   </div>
 `;
+
+const emailHtml = `
+  <div style="margin:0; padding:0; background-color:#f6f9fc;">
+    <center style="width:100%; table-layout:fixed; background-color:#f6f9fc; padding:20px 0;">
+      <div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:8px; border:1px solid #ddd; font-family:Arial, sans-serif;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+          <tr>
+            <td style="padding:30px;">
+              <h2 style="color:#333333; text-align:center; font-size:22px; margin:0 0 20px;">Booking Confirmation</h2>
+              <p style="font-size:16px; color:#333; margin:0 0 10px;">Hello <strong>${userExists.name}</strong>,</p>
+              <p style="font-size:16px; color:#333; margin:0 0 20px;">
+                Your booking has been <strong>successfully created</strong>. Below are your booking details:
+              </p>
+
+              <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color:#fafafa; border:1px solid #e1e1e1; border-radius:6px; margin:0 0 30px;">
+                <tr>
+                  <td style="font-size:15px;"><strong>Facility:</strong> ${facilityExists.name}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</td>
+                </tr>
+                <tr>
+                  <td style="font-size:15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</td>
+                </tr>
+              </table>
+
+              <div style="text-align:center; margin-top:20px;">
+                <a href="${calendarLink}" target="_blank" 
+                   style="display:inline-block; padding:12px 20px; background-color:#333; color:#fff; text-decoration:none; border-radius:5px; font-size:16px;">
+                  <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+                       alt="Google Calendar" 
+                       style="vertical-align:middle; width:20px; height:20px; margin-right:8px;" />
+                  Add to Google Calendar
+                </a>
+              </div>
+
+              <p style="font-size:14px; color:#888; text-align:center; margin-top:40px;">
+                Thank you for using our service!
+              </p>
+            </td>
+          </tr>
+        </table>
+      </div>
+    </center>
+  </div>
+`;
+
 
 const emailSent = await sendEmail(
   userExists.email,
