@@ -677,31 +677,106 @@ export const loginController = asyncHandler(async (req, res) => {
 });
 
 // Forgot Password Controller
+// export const ForgotPasswordController = asyncHandler(async (req, res) => {
+//   const { email, newPassword } = req.body;
+
+//   if (!email) {
+//     throw new apiError(400, "Email is required");
+//   }
+//   if (!newPassword) {
+//     throw new apiError(400, "New password is required");
+//   }
+
+//   // Find the user by email and secret
+//   const user = await User.findOne({ email});
+//   if (!user) {
+//     throw new apiError(404, "User not found or invalid secret");
+//   }
+
+//   // Hash the new password and update it
+//   const hashedPassword = await hashPassword(newPassword);
+//   await User.findByIdAndUpdate(user._id, { password: hashedPassword });
+
+//   res.status(200).json(new apiResponse(200, "Password reset successfully"));
+// });
+
+
 export const ForgotPasswordController = asyncHandler(async (req, res) => {
-  const { email, secret, newPassword } = req.body;
+  const { email, otp, newPassword } = req.body;
 
-  if (!email) {
-    throw new apiError(400, "Email is required");
-  }
-  if (!secret) {
-    throw new apiError(400, "Secret is required");
-  }
-  if (!newPassword) {
-    throw new apiError(400, "New password is required");
+  if (!email) throw new apiError(400, "Email is required");
+
+  const user = await User.findOne({ email });
+  if (!user) throw new apiError(404, "User not found");
+
+  const otpSessions = req.app.get("otpSessions");
+
+  // If no OTP and no newPassword, start session
+  if (!otp && !newPassword) {
+    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+    otpSessions.set(email, { otp: generatedOtp, expiresAt });
+
+    const html = `
+      <div style="background:#f9f9f9;padding:30px;font-family:Arial,sans-serif;">
+        <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:10px;padding:20px;border:1px solid #ddd;">
+          <h2 style="font-size:16px; color:red;text-align:center;">Password Reset Request</h2>
+          <p style="font-size:14px;">Hi <strong>${user.name}</strong>,</p>
+          <p style="font-size:14px;">You requested to reset your password. Use the OTP below to proceed:</p>
+          <div style="text-align:center; margin:10px 0;">
+            <span style="font-size:20px; font-weight:bold; color:#333;">${generatedOtp}</span>
+          </div>
+          <p style="font-size:12px; color:#666;">This OTP will expire in 5 minutes. If you didn’t request this, you can safely ignore this email.</p>
+        </div>
+      </div>
+    `;
+
+    await sendEmail(email, "Reset Password OTP", html, true);
+
+    return res.status(200).json(
+      new apiResponse(200, "OTP sent to your email")
+    );
   }
 
-  // Find the user by email and secret
-  const user = await User.findOne({ email, secret });
-  if (!user) {
-    throw new apiError(404, "User not found or invalid secret");
+  // Validate inputs
+  if (!otp) throw new apiError(400, "OTP is required");
+  if (!newPassword) throw new apiError(400, "New password is required");
+
+  const session = otpSessions.get(email);
+  if (!session || Date.now() > session.expiresAt) {
+    otpSessions.delete(email);
+    throw new apiError(400, "OTP expired or not found");
   }
 
-  // Hash the new password and update it
-  const hashedPassword = await hashPassword(newPassword);
-  await User.findByIdAndUpdate(user._id, { password: hashedPassword });
+  if (session.otp !== otp) {
+    return res.status(400).json(new apiResponse(400, "Invalid OTP"));
+  }
 
-  res.status(200).json(new apiResponse(200, "Password reset successfully"));
+  // OTP is valid → update password
+  const hashed = await hashPassword(newPassword);
+  await User.findByIdAndUpdate(user._id, { password: hashed });
+
+  otpSessions.delete(email); // Clean up
+
+  // Send success email
+  const successHtml = `
+    <div style="background:#f0f4f8;padding:30px;font-family:Arial,sans-serif;">
+      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:10px;padding:20px;border:1px solid #ddd;">
+        <h2 style="color:red;text-align:center;">Password Reset Successful</h2>
+        <p style="font-size:14px;">Hi <strong>${user.name}</strong>,</p>
+        <p style="font-size:14px;">Your password has been changed successfully. If you did not perform this action, please contact support immediately.</p>
+        <p style="font-size:12px; color:#999;text-align:center;margin-top:30px;">Thank you for using our service!</p>
+      </div>
+    </div>
+  `;
+  await sendEmail(email, "Password Changed", successHtml, true);
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, "Password updated successfully"));
 });
+
 
 //delete user by id
 export const deleteUserByIdController = asyncHandler(async (req, res) => {

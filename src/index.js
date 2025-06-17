@@ -13,6 +13,9 @@ import { autoCleanUpBookings } from "./controllers/booking.controller.js";
 dotenv.config({
     path: "./.env",
 });
+// app.js or index.js
+const otpSessions = new Map();
+app.set("otpSessions", otpSessions);
 
 // Create HTTP server
 const server = createServer(app);

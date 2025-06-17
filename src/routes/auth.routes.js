@@ -6,7 +6,7 @@ import { testEmailTemplateController } from "../controllers/booking.controller.j
 const router = Router();
 
 // Public Routes
-// router.route("/forgot-password").post(ForgotPasswordController);
+router.route("/forgot-password").post(ForgotPasswordController);
 // router.route("/user/verify-email").post(verifyJWT, verifyEmailOtpController);
 router.route("/register").post(verifyJWT ,verifyClientOrAdmin, registerControllerByAdminClient);
 router.route("/self-register/:clientId").post(selfRegisterController);
