@@ -23,6 +23,13 @@ const generateToken = (id, type, role) => {
   });
 };
 
+export const generateRefreshToken = (id, type, role) => {
+  return jwt.sign({ id, type, role }, process.env.REFRESH_TOKEN_SECRET, {
+    expiresIn: process.env.REFRESH_TOKEN_EXPIRY ,
+  });
+};
+
+
 
 export const getAllUsersByRoleController = asyncHandler(async (req, res) => {
   // params userType get from url
@@ -659,8 +666,17 @@ export const loginController = asyncHandler(async (req, res) => {
   const userType = user.role === 'client' ? 'client' : 'user';  // Determine type based on role
 
   // Generate JWT token for the user (client or regular user)
-  const token = generateToken(user._id, userType, user.role);  // Add 'type' and 'role' to the token payload
+  const accessToken  = generateToken(user._id, userType, user.role);  // Add 'type' and 'role' to the token payload
+  const refreshToken = generateRefreshToken(user._id, userType, user.role);
   
+  // Set refresh token in secure HTTP-only cookie
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+    maxAge: 100 * 24 * 60 * 60 * 1000, // 100 days in ms
+  });
+
   const loggedInUser = await User.findById(user._id)
     .select("-password")
     .populate("facilities", "_id name description");
@@ -670,10 +686,35 @@ export const loginController = asyncHandler(async (req, res) => {
     .json(
       new apiResponse(
         200,
-        { user: loggedInUser, token },
+        { user: loggedInUser, token:accessToken  },
         "User logged in successfully"
       )
     );
+});
+
+export const refreshTokenController = asyncHandler(async (req, res) => {
+  const token = req.cookies.refreshToken;
+
+  if (!token) {
+    throw new apiError(401, "Refresh token is missing");
+  }
+
+  const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+
+  if (!decoded?.id) {
+    throw new apiError(403, "Invalid or expired refresh token");
+  }
+
+  const { id, type, role } = decoded;
+  const newAccessToken = generateToken(id, type, role);
+
+  res.status(200).json(
+    new apiResponse(
+      200,
+      { token: newAccessToken },
+      "Access token refreshed successfully"
+    )
+  );
 });
 
 // Forgot Password Controller

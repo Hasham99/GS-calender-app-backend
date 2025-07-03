@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { loginController, ForgotPasswordController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminClient, updateUserController, verifyEmailOtpController, inviteUserController, acceptInviteController, getAllUsersByIdController, selfRegisterController, getUsersByClientIdController } from "../controllers/auth.controller.js";
+import { loginController, ForgotPasswordController, getAllUsersByRoleController, deleteUserByIdController, verifyOtpController, sendOtpController, registerControllerByAdminClient, updateUserController, verifyEmailOtpController, inviteUserController, acceptInviteController, getAllUsersByIdController, selfRegisterController, getUsersByClientIdController, refreshTokenController } from "../controllers/auth.controller.js";
 import { verifyJWT, authorizeRoles, isAdminController, verifyClientOrAdmin } from "../middlewares/auth.middleware.js";
 import { testEmailTemplateController } from "../controllers/booking.controller.js";
 
@@ -12,6 +12,7 @@ router.route("/register").post(verifyJWT ,verifyClientOrAdmin, registerControlle
 router.route("/self-register/:clientId").post(selfRegisterController);
 
 router.route("/login").post(loginController);
+router.route("/refresh-token").post(refreshTokenController);
 router.route("/email-sent").get(testEmailTemplateController);
 
 router.route("/send-otp").post(sendOtpController);
