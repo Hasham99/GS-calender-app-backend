@@ -53,10 +53,7 @@ const createOrUpdateLimitationController = asyncHandler(async (req, res) => {
   
     await limitationDoc.save();
     return res.status(200).json(new apiResponse(200, limitationDoc, "Limitation rules updated successfully"));
-  });
-  
-
-
+});
 
 // Controller to get limitation by user and facility
 const getAllLimitationController = asyncHandler(async (req, res) => {
@@ -132,16 +129,34 @@ const getLimitationController = asyncHandler(async (req, res) => {
     }
   
     return res.status(200).json(new apiResponse(200, filteredRules, "Limitation rules fetched successfully"));
-  });
+});
   
-export const getLimitationForUserFacility = async (clientId, userId, facilityId) => {
-    const limitation = await Limitation.findOne({ clientId, user: userId, facility: facilityId });
+// export const getLimitationForUserFacility = async (clientId, userId, facilityId) => {
+//     const limitation = await Limitation.findOne({ clientId, user: userId, facility: facilityId });
 
-    return {
-        maxWeeksAdvance: limitation?.maxWeeksAdvance ?? 4, // default 4 weeks
-        maxBookingsPerWeek: limitation?.maxBookingsPerWeek ?? 3, // default 3 per week
-        maxBookingsPerMonth: limitation?.maxBookingsPerMonth ?? 10, // optional
-    };
+//     return {
+//         maxWeeksAdvance: limitation?.maxWeeksAdvance ?? 4, // default 4 weeks
+//         maxBookingsPerWeek: limitation?.maxBookingsPerWeek ?? 3, // default 3 per week
+//         maxBookingsPerMonth: limitation?.maxBookingsPerMonth ?? 10, // optional
+//     };
+// };
+
+export const getLimitationForUserFacility = async (clientId, userId, facilityId) => {
+  const limitation = await Limitation.findOne({
+    clientId,
+    user: userId,
+    "rules.facility": facilityId
+  });
+
+  const rule = limitation?.rules.find(
+    r => r.facility.toString() === facilityId.toString()
+  );
+
+  return {
+    maxWeeksAdvance: rule?.maxWeeksAdvance ?? 4,
+    maxBookingsPerWeek: rule?.maxBookingsPerWeek ?? 3,
+    maxBookingsPerMonth: rule?.maxBookingsPerMonth ?? 10,
+  };
 };
 
 export {getAllLimitationController, createOrUpdateLimitationController, getLimitationController };

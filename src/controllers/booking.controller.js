@@ -294,7 +294,7 @@ const createBookingController23July25 = asyncHandler(async (req, res) => {
     throw new apiError(error.statusCode || 500, error.message, [], error.stack);
   }
 });
-const createBookingController = asyncHandler(async (req, res) => {
+const createBookingController19oct25 = asyncHandler(async (req, res) => {
   const { clientId, facility, user, startDate, endDate, conditionsAccepted } = req.body;
   try {
     if (!clientId || !facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
@@ -436,6 +436,111 @@ const createBookingController = asyncHandler(async (req, res) => {
     });
     throw new apiError(error.statusCode || 500, error.message, [], error.stack);
   }
+});
+
+const createBookingController = asyncHandler(async (req, res) => {
+  const { clientId, facility, user, startDate, endDate, conditionsAccepted } = req.body;
+
+  if (!clientId || !facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
+    throw new apiError(400, "All fields are required");
+  }
+
+  if (new Date(startDate) >= new Date(endDate)) {
+    throw new apiError(400, "Start date must be before the end date");
+  }
+
+  const facilityExists = await Facility.findById(facility);
+  if (!facilityExists) throw new apiError(404, "Facility not found");
+
+  const userExists = await User.findById(user);
+  if (!userExists) throw new apiError(404, "User not found");
+
+  // ✅ Get limitation rules for this user and facility
+  const limitation = await getLimitationForUserFacility(clientId, user, facility);
+
+  const { maxWeeksAdvance, maxBookingsPerWeek, maxBookingsPerMonth } = limitation;
+
+  const startDateObj = new Date(startDate);
+  const endDateObj = new Date(endDate);
+  const currentDate = new Date();
+
+  // ✅ 1️⃣ Check max advance booking limit
+  const maxAllowedDate = moment(currentDate).add(maxWeeksAdvance, "weeks").toDate();
+  if (startDateObj > maxAllowedDate) {
+    throw new apiError(
+      400,
+      `You can only book up to ${maxWeeksAdvance} weeks in advance.`
+    );
+  }
+
+  // ✅ 2️⃣ Check weekly booking limit
+  const startOfWeek = moment(startDateObj).startOf("isoWeek").toDate();
+  const endOfWeek = moment(startDateObj).endOf("isoWeek").toDate();
+
+  const userBookingsThisWeek = await Booking.countDocuments({
+    clientId,
+    user,
+    facility,
+    startDate: { $gte: startOfWeek, $lte: endOfWeek },
+  });
+
+  if (userBookingsThisWeek >= maxBookingsPerWeek) {
+    throw new apiError(
+      400,
+      `You can only have ${maxBookingsPerWeek} bookings per week for this facility.`
+    );
+  }
+
+  // ✅ 3️⃣ Check monthly booking limit
+  const startOfMonth = moment(startDateObj).startOf("month").toDate();
+  const endOfMonth = moment(startDateObj).endOf("month").toDate();
+
+  const userBookingsThisMonth = await Booking.countDocuments({
+    clientId,
+    user,
+    facility,
+    startDate: { $gte: startOfMonth, $lte: endOfMonth },
+  });
+
+  if (userBookingsThisMonth >= maxBookingsPerMonth) {
+    throw new apiError(
+      400,
+      `You can only have ${maxBookingsPerMonth} bookings per month for this facility.`
+    );
+  }
+
+  // ✅ 4️⃣ Check for time conflict with other bookings
+  const existingBookingConflict = await Booking.findOne({
+    clientId,
+    facility,
+    $or: [
+      { startDate: { $lt: endDateObj }, endDate: { $gt: startDateObj } },
+      { startDate: { $gte: startDateObj }, endDate: { $lte: endDateObj } },
+    ],
+  });
+
+  if (existingBookingConflict) {
+    throw new apiError(400, "This time slot is already booked for this facility.");
+  }
+
+  // ✅ 5️⃣ If all checks pass, create the booking
+  const newBooking = await Booking.create({
+    clientId,
+    facility,
+    user,
+    startDate: startDateObj,
+    endDate: endDateObj,
+    conditionsAccepted,
+  });
+
+  const populatedBooking = await Booking.findById(newBooking._id).populate([
+    { path: "facility", select: "name description" },
+    { path: "user", select: "name email role" },
+  ]);
+
+  return res
+    .status(201)
+    .json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });
 
 const testEmailTemplateController = asyncHandler(async (req, res) => {
