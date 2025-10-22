@@ -41,7 +41,8 @@ io.on("connection", (socket) => {
     socket.on("request_bookings", async () => {
         try {
             const bookings = await Booking.find().populate([{ path: 'facility', select: 'name description' }, { path: 'user', select: 'name email role' }]).exec();
-            console.log("Emitting bookings to client:", bookings); // Debugging log
+            // console.log("Emitting bookings to client:", bookings); // Debugging log
+            console.log("Emitting bookings to client:"); // Debugging log
             socket.emit("bookings_list", bookings); // Emit to the requesting client
         } catch (error) {
             console.error("Error fetching bookings:", error);

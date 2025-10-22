@@ -633,15 +633,15 @@ const createBookingController = asyncHandler(async (req, res) => {
     }
 
     // 1️⃣1️⃣ Send booking confirmation email
-    const formattedStart = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
-    const formattedEnd = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    const formattedStartDate = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    const formattedEndDate = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
     const startUtcISO = moment.utc(startDateObj).format("YYYYMMDDTHHmmss") + "Z";
     const endUtcISO = moment.utc(endDateObj).format("YYYYMMDDTHHmmss") + "Z";
 
     const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
       `Booking at ${facilityExists.name}`
     )}&dates=${startUtcISO}/${endUtcISO}&details=${encodeURIComponent(
-      `Booking from ${formattedStart} to ${formattedEnd} (Asia/Karachi)\nFacility: ${facilityExists.name}`
+      `Booking from ${formattedStartDate} to ${formattedEndDate} (Asia/Karachi)\nFacility: ${facilityExists.name}`
     )}&sf=true&output=xml`;
 
     const emailHtml = `
@@ -705,7 +705,7 @@ const createBookingController = asyncHandler(async (req, res) => {
         await sendEmail(
           userExists.email,
           "Booking Reminder - 6 Hours Left",
-          `Hello ${userExists.name},\n\nThis is a reminder that your booking starts in 6 hours.\n\nFacility: ${facilityExists.name}\nStart: ${formattedStart}`
+          `Hello ${userExists.name},\n\nThis is a reminder that your booking starts in 6 hours.\n\nFacility: ${facilityExists.name}\nStart: ${formattedStartDate}`
         );
 
         reminderTimeouts.delete(newBooking._id.toString());
