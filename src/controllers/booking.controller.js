@@ -438,7 +438,7 @@ const createBookingController19oct25 = asyncHandler(async (req, res) => {
   }
 });
 
-const createBookingController = asyncHandler(async (req, res) => {
+const createBookingController23Oct25 = asyncHandler(async (req, res) => {
   const { clientId, facility, user, startDate, endDate, conditionsAccepted } = req.body;
 
   if (!clientId || !facility || !user || !startDate || !endDate || conditionsAccepted === undefined) {
@@ -542,6 +542,205 @@ const createBookingController = asyncHandler(async (req, res) => {
     .status(201)
     .json(new apiResponse(201, populatedBooking, "Booking created successfully"));
 });
+
+const createBookingController = asyncHandler(async (req, res) => {
+  const { clientId, facility, user, startDate, endDate, conditionsAccepted } = req.body;
+
+  try {
+    // 1️⃣ Validate required fields
+    if (!clientId || !facility || !user || !startDate || !endDate || conditionsAccepted === undefined)
+      throw new apiError(400, "All fields are required");
+
+    // 2️⃣ Validate date logic
+    if (new Date(startDate) >= new Date(endDate))
+      throw new apiError(400, "Start date must be before the end date");
+
+    // 3️⃣ Validate facility & user
+    const facilityExists = await Facility.findById(facility);
+    if (!facilityExists) throw new apiError(404, "Facility not found");
+
+    const userExists = await User.findById(user);
+    if (!userExists) throw new apiError(404, "User not found");
+
+    // 4️⃣ Get booking limitation rules
+    const limitation = await getLimitationForUserFacility(clientId, user, facility);
+    const { maxWeeksAdvance, maxBookingsPerWeek, maxBookingsPerMonth } = limitation;
+
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    const currentDate = new Date();
+
+    // 5️⃣ Check advance weeks
+    const maxAllowedDate = moment(currentDate).add(maxWeeksAdvance, "weeks").toDate();
+    if (startDateObj > maxAllowedDate)
+      throw new apiError(400, `You can only book up to ${maxWeeksAdvance} weeks in advance.`);
+
+    // 6️⃣ Weekly limit
+    const startOfWeek = moment(startDateObj).startOf("isoWeek").toDate();
+    const endOfWeek = moment(startDateObj).endOf("isoWeek").toDate();
+    const weeklyBookings = await Booking.countDocuments({
+      clientId,
+      user,
+      facility,
+      startDate: { $gte: startOfWeek, $lte: endOfWeek },
+    });
+    if (weeklyBookings >= maxBookingsPerWeek)
+      throw new apiError(400, `You can only have ${maxBookingsPerWeek} bookings per week for this facility.`);
+
+    // 7️⃣ Monthly limit
+    const startOfMonth = moment(startDateObj).startOf("month").toDate();
+    const endOfMonth = moment(startDateObj).endOf("month").toDate();
+    const monthlyBookings = await Booking.countDocuments({
+      clientId,
+      user,
+      facility,
+      startDate: { $gte: startOfMonth, $lte: endOfMonth },
+    });
+    if (monthlyBookings >= maxBookingsPerMonth)
+      throw new apiError(400, `You can only have ${maxBookingsPerMonth} bookings per month for this facility.`);
+
+    // 8️⃣ Time conflict check
+    const conflict = await Booking.findOne({
+      clientId,
+      facility,
+      $or: [
+        { startDate: { $lt: endDateObj }, endDate: { $gt: startDateObj } },
+        { startDate: { $gte: startDateObj }, endDate: { $lte: endDateObj } },
+      ],
+    });
+    if (conflict) throw new apiError(400, "This time slot is already booked for this facility.");
+
+    // 9️⃣ Create booking
+    const newBooking = await Booking.create({
+      clientId,
+      facility,
+      user,
+      startDate: startDateObj,
+      endDate: endDateObj,
+      conditionsAccepted,
+    });
+
+    const populatedBooking = await Booking.findById(newBooking._id).populate([
+      { path: "facility", select: "name description" },
+      { path: "user", select: "name email role" },
+    ]);
+
+    // 🔟 Emit via Socket.IO
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("booking_created", populatedBooking);
+      console.log("✅ Socket emitted for booking:", populatedBooking._id);
+    }
+
+    // 1️⃣1️⃣ Send booking confirmation email
+    const formattedStart = moment.utc(startDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    const formattedEnd = moment.utc(endDateObj).tz("Asia/Karachi").format("YYYY-MM-DD hh:mm A");
+    const startUtcISO = moment.utc(startDateObj).format("YYYYMMDDTHHmmss") + "Z";
+    const endUtcISO = moment.utc(endDateObj).format("YYYYMMDDTHHmmss") + "Z";
+
+    const calendarLink = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(
+      `Booking at ${facilityExists.name}`
+    )}&dates=${startUtcISO}/${endUtcISO}&details=${encodeURIComponent(
+      `Booking from ${formattedStart} to ${formattedEnd} (Asia/Karachi)\nFacility: ${facilityExists.name}`
+    )}&sf=true&output=xml`;
+
+    const emailHtml = `
+      <div style="margin:0; padding:0; background-color:#f6f9fc;">
+        <center style="width:100%; table-layout:fixed; background-color:#f6f9fc; padding:20px 0;">
+          <div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:8px; border:1px solid #ddd; font-family:Arial, sans-serif;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+              <tr>
+                <td style="padding:30px;">
+                  <h2 style="color:#333333; text-align:center; font-size:22px; margin:0 0 20px;">Booking Confirmation</h2>
+                  <p style="font-size:16px; color:#333; margin:0 0 10px;">Hello <strong>${userExists.name}</strong>,</p>
+                  <p style="font-size:16px; color:#333; margin:0 0 20px;">
+                    Your booking has been <strong>successfully created</strong>. Below are your booking details:
+                  </p>
+
+                  <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color:#fafafa; border:1px solid #e1e1e1; border-radius:6px; margin:0 0 30px;">
+                    <tr>
+                      <td style="font-size:15px;"><strong>Facility:</strong> ${facilityExists.name}</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</td>
+                    </tr>
+                  </table>
+
+                  <div style="text-align:center; margin-top:20px;">
+                    <a href="${calendarLink}" target="_blank" 
+                      style="display:inline-block; padding:12px 20px; background-color:#333; color:#fff; text-decoration:none; border-radius:5px; font-size:16px;">
+                      <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+                          alt="Google Calendar" 
+                          style="vertical-align:middle; width:20px; height:20px; margin-right:8px;" />
+                      Add to Google Calendar
+                    </a>
+                  </div>
+
+                  <p style="font-size:14px; color:#888; text-align:center; margin-top:40px;">
+                    Thank you for using our service!
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </center>
+      </div>
+    `;
+
+    await sendEmail(userExists.email, "Booking Confirmation", emailHtml, true);
+
+    // 1️⃣2️⃣ Schedule reminder (6 hours before)
+    const reminderTimeouts = req.app.get("bookingReminderTimeouts");
+    const sixHoursBefore = startDateObj.getTime() - 6 * 60 * 60 * 1000;
+    const delay = sixHoursBefore - Date.now();
+
+    if (delay > 0) {
+      const timeoutId = setTimeout(async () => {
+        const stillExists = await Booking.findById(newBooking._id);
+        if (!stillExists) return console.log("Booking deleted, skipping reminder.");
+
+        await sendEmail(
+          userExists.email,
+          "Booking Reminder - 6 Hours Left",
+          `Hello ${userExists.name},\n\nThis is a reminder that your booking starts in 6 hours.\n\nFacility: ${facilityExists.name}\nStart: ${formattedStart}`
+        );
+
+        reminderTimeouts.delete(newBooking._id.toString());
+      }, delay);
+
+      reminderTimeouts.set(newBooking._id.toString(), timeoutId);
+    }
+
+    // 1️⃣3️⃣ Log success
+    await BookingLog.create({
+      clientId,
+      user,
+      facility,
+      status: "success",
+      message: "Booking created successfully",
+      data: { bookingId: newBooking._id },
+    });
+
+    return res
+      .status(201)
+      .json(new apiResponse(201, populatedBooking, "Booking created successfully"));
+  } catch (error) {
+    // ❌ Log and throw
+    await BookingLog.create({
+      clientId,
+      user,
+      facility,
+      status: "error",
+      message: error.message,
+      data: { stack: error.stack, startDate, endDate, conditionsAccepted },
+    });
+    throw new apiError(error.statusCode || 500, error.message, [], error.stack);
+  }
+});
+
 
 const testEmailTemplateController = asyncHandler(async (req, res) => {
   // Dummy data
