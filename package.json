@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "admin": "node src/addAdmin.js"
+    "admin": "node src/addAdmin.js",
+    "sync:history": "node src/scripts/syncBookingHistory.js"
+
   },
   "keywords": [],
   "author": "Hasham",

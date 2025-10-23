@@ -164,50 +164,50 @@ const createBookingController23July25 = asyncHandler(async (req, res) => {
     )}&sf=true&output=xml`;
 
     const emailHtml = `
-  <div style="margin:0; padding:0; background-color:#f6f9fc;">
-    <center style="width:100%; table-layout:fixed; background-color:#f6f9fc; padding:20px 0;">
-      <div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:8px; border:1px solid #ddd; font-family:Arial, sans-serif;">
-        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
-          <tr>
-            <td style="padding:30px;">
-              <h2 style="color:#333333; text-align:center; font-size:22px; margin:0 0 20px;">Booking Confirmation</h2>
-              <p style="font-size:16px; color:#333; margin:0 0 10px;">Hello <strong>${userExists.name}</strong>,</p>
-              <p style="font-size:16px; color:#333; margin:0 0 20px;">
-                Your booking has been <strong>successfully created</strong>. Below are your booking details:
-              </p>
+      <div style="margin:0; padding:0; background-color:#f6f9fc;">
+        <center style="width:100%; table-layout:fixed; background-color:#f6f9fc; padding:20px 0;">
+          <div style="max-width:600px; margin:0 auto; background-color:#ffffff; border-radius:8px; border:1px solid #ddd; font-family:Arial, sans-serif;">
+            <table cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;">
+              <tr>
+                <td style="padding:30px;">
+                  <h2 style="color:#333333; text-align:center; font-size:22px; margin:0 0 20px;">Booking Confirmation</h2>
+                  <p style="font-size:16px; color:#333; margin:0 0 10px;">Hello <strong>${userExists.name}</strong>,</p>
+                  <p style="font-size:16px; color:#333; margin:0 0 20px;">
+                    Your booking has been <strong>successfully created</strong>. Below are your booking details:
+                  </p>
 
-              <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color:#fafafa; border:1px solid #e1e1e1; border-radius:6px; margin:0 0 30px;">
-                <tr>
-                  <td style="font-size:15px;"><strong>Facility:</strong> ${facilityExists.name}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</td>
-                </tr>
-                <tr>
-                  <td style="font-size:15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</td>
-                </tr>
-              </table>
+                  <table width="100%" cellpadding="10" cellspacing="0" border="0" style="background-color:#fafafa; border:1px solid #e1e1e1; border-radius:6px; margin:0 0 30px;">
+                    <tr>
+                      <td style="font-size:15px;"><strong>Facility:</strong> ${facilityExists.name}</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:15px;"><strong>Start Date (Asia/Karachi):</strong> ${formattedStartDate}</td>
+                    </tr>
+                    <tr>
+                      <td style="font-size:15px;"><strong>End Date (Asia/Karachi):</strong> ${formattedEndDate}</td>
+                    </tr>
+                  </table>
 
-              <div style="text-align:center; margin-top:20px;">
-                <a href="${calendarLink}" target="_blank" 
-                   style="display:inline-block; padding:12px 20px; background-color:#333; color:#fff; text-decoration:none; border-radius:5px; font-size:16px;">
-                  <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
-                       alt="Google Calendar" 
-                       style="vertical-align:middle; width:20px; height:20px; margin-right:8px;" />
-                  Add to Google Calendar
-                </a>
-              </div>
+                  <div style="text-align:center; margin-top:20px;">
+                    <a href="${calendarLink}" target="_blank" 
+                      style="display:inline-block; padding:12px 20px; background-color:#333; color:#fff; text-decoration:none; border-radius:5px; font-size:16px;">
+                      <img src="https://www.gstatic.com/calendar/images/dynamiclogo_2020q4/calendar_16_2x.png" 
+                          alt="Google Calendar" 
+                          style="vertical-align:middle; width:20px; height:20px; margin-right:8px;" />
+                      Add to Google Calendar
+                    </a>
+                  </div>
 
-              <p style="font-size:14px; color:#888; text-align:center; margin-top:40px;">
-                Thank you for using our service!
-              </p>
-            </td>
-          </tr>
-        </table>
+                  <p style="font-size:14px; color:#888; text-align:center; margin-top:40px;">
+                    Thank you for using our service!
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </div>
+        </center>
       </div>
-    </center>
-  </div>
-`;
+    `;
 
     const emailSent = await sendEmail(
       userExists.email,
@@ -692,27 +692,28 @@ const createBookingController = asyncHandler(async (req, res) => {
 
     await sendEmail(userExists.email, "Booking Confirmation", emailHtml, true);
 
-    // 1️⃣2️⃣ Schedule reminder (6 hours before)
-    const reminderTimeouts = req.app.get("bookingReminderTimeouts");
-    const sixHoursBefore = startDateObj.getTime() - 6 * 60 * 60 * 1000;
-    const delay = sixHoursBefore - Date.now();
 
-    if (delay > 0) {
-      const timeoutId = setTimeout(async () => {
-        const stillExists = await Booking.findById(newBooking._id);
-        if (!stillExists) return console.log("Booking deleted, skipping reminder.");
+    // // 1️⃣2️⃣ Schedule reminder (6 hours before)
+    // const reminderTimeouts = req.app.get("bookingReminderTimeouts");
+    // const sixHoursBefore = startDateObj.getTime() - 6 * 60 * 60 * 1000;
+    // const delay = sixHoursBefore - Date.now();
 
-        await sendEmail(
-          userExists.email,
-          "Booking Reminder - 6 Hours Left",
-          `Hello ${userExists.name},\n\nThis is a reminder that your booking starts in 6 hours.\n\nFacility: ${facilityExists.name}\nStart: ${formattedStartDate}`
-        );
+    // if (delay > 0) {
+    //   const timeoutId = setTimeout(async () => {
+    //     const stillExists = await Booking.findById(newBooking._id);
+    //     if (!stillExists) return console.log("Booking deleted, skipping reminder.");
 
-        reminderTimeouts.delete(newBooking._id.toString());
-      }, delay);
+    //     await sendEmail(
+    //       userExists.email,
+    //       "Booking Reminder - 6 Hours Left",
+    //       `Hello ${userExists.name},\n\nThis is a reminder that your booking starts in 6 hours.\n\nFacility: ${facilityExists.name}\nStart: ${formattedStartDate}`
+    //     );
 
-      reminderTimeouts.set(newBooking._id.toString(), timeoutId);
-    }
+    //     reminderTimeouts.delete(newBooking._id.toString());
+    //   }, delay);
+
+    //   reminderTimeouts.set(newBooking._id.toString(), timeoutId);
+    // }
 
     // 1️⃣3️⃣ Log success
     await BookingLog.create({
@@ -723,6 +724,20 @@ const createBookingController = asyncHandler(async (req, res) => {
       message: "Booking created successfully",
       data: { bookingId: newBooking._id },
     });
+    // ✅ After successfully creating the booking
+    await BookingHistory.create({
+      bookingId: newBooking._id,          // Reference to the active booking
+      clientId: newBooking.clientId,
+      facility: newBooking.facility,
+      user: newBooking.user,
+      startDate: newBooking.startDate,
+      endDate: newBooking.endDate,
+      status: "pending",                  // Always pending at creation
+      conditionsAccepted: newBooking.conditionsAccepted,
+    });
+
+    console.log(`🟡 Booking added to history (pending): ${newBooking._id}`);
+
 
     return res
       .status(201)
@@ -740,7 +755,6 @@ const createBookingController = asyncHandler(async (req, res) => {
     throw new apiError(error.statusCode || 500, error.message, [], error.stack);
   }
 });
-
 
 const testEmailTemplateController = asyncHandler(async (req, res) => {
   // Dummy data
@@ -946,53 +960,300 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiResponse(200, null, "Cleanup job executed successfully"));
 });
+
+// const autoCleanUpBookings = async () => {
+//   try {
+//     // Get the current time in Karachi timezone
+//     const nowKarachi = moment().tz("Asia/Karachi");
+
+//     console.log(
+//       `Running cleanup job at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`
+//         .bgYellow.white
+//     );
+
+//     // Fetch all bookings from the database
+//     const bookings = await Booking.find({}).lean(); // Use .lean() to return plain JS objects
+
+//     for (const booking of bookings) {
+//       const endDate = moment(booking.endDate);
+
+//       if (endDate.isSameOrBefore(nowKarachi)) {
+//         console.log(
+//           `Booking ID: ${booking._id} is expired. Moving to history and deleting.`
+//             .yellow
+//         );
+
+//         // Ensure references are correctly copied
+//         const bookingHistory = new BookingHistory({
+//           clientId: booking.clientId || null, // Ensure it's preserved
+//           facility: booking.facility || null,
+//           user: booking.user || null,
+//           startDate: booking.startDate,
+//           endDate: booking.endDate,
+//           status: booking.status,
+//           conditionsAccepted: booking.conditionsAccepted,
+//           deletedAt: nowKarachi.toDate(),
+//         });
+
+//         // Save to history
+//         await bookingHistory.save();
+
+//         // Delete the booking from the main collection
+//         await Booking.deleteOne({ _id: booking._id });
+
+//         console.log(`Booking ID: ${booking._id} has been deleted.`.bgRed.white);
+//       }
+//     }
+//   } catch (error) {
+//     console.error("Error during booking cleanup:", error);
+//   }
+// };
+
+//  const autoCleanUpBookings = async () => {
+//   try {
+//     const nowKarachi = moment().tz("Asia/Karachi");
+
+//     console.log(
+//       `🚀 Running auto-cleanup at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.black
+//     );
+
+//     // Fetch all active bookings
+//     const bookings = await Booking.find({}).lean();
+
+//     for (const booking of bookings) {
+//       const startDate = moment(booking.startDate);
+//       const endDate = moment(booking.endDate);
+//       const isCompleted = endDate.isSameOrBefore(nowKarachi);
+
+//       // Step 1: Try to find a matching history record (new or legacy)
+//       const existingHistory = await BookingHistory.findOne({
+//         $or: [
+//           { bookingId: booking._id },
+//           {
+//             bookingId: { $exists: false },
+//             clientId: booking.clientId,
+//             facility: booking.facility,
+//             user: booking.user,
+//             startDate: booking.startDate,
+//             endDate: booking.endDate,
+//           },
+//         ],
+//       });
+
+//       // Step 2: If no history exists, create one (status = pending)
+//       if (!existingHistory) {
+//         await BookingHistory.create({
+//           bookingId: booking._id,
+//           clientId: booking.clientId,
+//           facility: booking.facility,
+//           user: booking.user,
+//           startDate: booking.startDate,
+//           endDate: booking.endDate,
+//           status: "pending",
+//           conditionsAccepted: booking.conditionsAccepted,
+//         });
+
+//         console.log(`🟡 Added missing booking to history: ${booking._id}`);
+//       }
+
+//       // Step 3: If booking is completed → mark completed + delete from active bookings
+//       if (isCompleted) {
+//         await BookingHistory.findOneAndUpdate(
+//           {
+//             $or: [
+//               { bookingId: booking._id },
+//               {
+//                 bookingId: { $exists: false },
+//                 clientId: booking.clientId,
+//                 facility: booking.facility,
+//                 user: booking.user,
+//                 startDate: booking.startDate,
+//                 endDate: booking.endDate,
+//               },
+//             ],
+//           },
+//           {
+//             $set: {
+//               status: "completed",
+//               deletedAt: nowKarachi.toDate(),
+//               bookingId: booking._id, // ✅ ensures backfill
+//             },
+//           }
+//         );
+
+//         await Booking.deleteOne({ _id: booking._id });
+
+//         console.log(`✅ Completed & moved to history: ${booking._id}`.bgRed.white);
+//       } else {
+//         console.log(`📦 Booking still pending: ${booking._id}`.green);
+//       }
+//     }
+
+//     // Step 4: Backfill bookingId for older histories (optional but smart)
+//     const historiesWithoutId = await BookingHistory.find({ bookingId: { $exists: false } });
+//     for (const hist of historiesWithoutId) {
+//       const match = await Booking.findOne({
+//         clientId: hist.clientId,
+//         facility: hist.facility,
+//         user: hist.user,
+//         startDate: hist.startDate,
+//         endDate: hist.endDate,
+//       });
+
+//       if (match) {
+//         await BookingHistory.updateOne(
+//           { _id: hist._id },
+//           { $set: { bookingId: match._id } }
+//         );
+//         console.log(`🔄 Backfilled bookingId for history: ${hist._id}`);
+//       }
+//     }
+
+//     console.log("🎯 Auto cleanup job finished successfully.".bgBlue.white);
+//   } catch (error) {
+//     console.error("❌ Error during booking cleanup:", error);
+//   }
+// };
+
 const autoCleanUpBookings = async () => {
   try {
-    // Get the current time in Karachi timezone
     const nowKarachi = moment().tz("Asia/Karachi");
 
     console.log(
-      `Running cleanup job at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`
-        .bgYellow.white
+      `🚀 Running auto-cleanup at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.black
     );
 
-    // Fetch all bookings from the database
-    const bookings = await Booking.find({}).lean(); // Use .lean() to return plain JS objects
+    // Fetch all active bookings
+    const bookings = await Booking.find({})
+      .populate("user facility")
+      .lean();
 
     for (const booking of bookings) {
-      const endDate = moment(booking.endDate);
+      const startDate = moment(booking.startDate).tz("Asia/Karachi");
+      const endDate = moment(booking.endDate).tz("Asia/Karachi");
 
-      if (endDate.isSameOrBefore(nowKarachi)) {
-        console.log(
-          `Booking ID: ${booking._id} is expired. Moving to history and deleting.`
-            .yellow
-        );
+      const isCompleted = endDate.isSameOrBefore(nowKarachi);
+      const isWithin6Hours =
+        startDate.isAfter(nowKarachi) &&
+        startDate.diff(nowKarachi, "hours") <= 6;
 
-        // Ensure references are correctly copied
-        const bookingHistory = new BookingHistory({
-          clientId: booking.clientId || null, // Ensure it's preserved
-          facility: booking.facility || null,
-          user: booking.user || null,
+      // Step 1️⃣: Ensure a history record exists
+      const existingHistory = await BookingHistory.findOne({
+        $or: [
+          { bookingId: booking._id },
+          {
+            bookingId: { $exists: false },
+            clientId: booking.clientId,
+            facility: booking.facility,
+            user: booking.user,
+            startDate: booking.startDate,
+            endDate: booking.endDate,
+          },
+        ],
+      });
+
+      if (!existingHistory) {
+        await BookingHistory.create({
+          bookingId: booking._id,
+          clientId: booking.clientId,
+          facility: booking.facility,
+          user: booking.user,
           startDate: booking.startDate,
           endDate: booking.endDate,
-          status: booking.status,
+          status: "pending",
           conditionsAccepted: booking.conditionsAccepted,
-          deletedAt: nowKarachi.toDate(),
         });
 
-        // Save to history
-        await bookingHistory.save();
+        console.log(`🟡 Added missing booking to history: ${booking._id}`);
+      }
 
-        // Delete the booking from the main collection
+      // Step 2️⃣: Send reminder email if within 6 hours before start
+      if (isWithin6Hours) {
+        console.log(`📧 Sending reminder email for booking: ${booking._id}`);
+
+        const formattedStart = startDate.format("YYYY-MM-DD hh:mm A");
+        const formattedEnd = endDate.format("YYYY-MM-DD hh:mm A");
+
+        try {
+          await sendEmail(
+            booking.user.email,
+            "Booking Reminder - Starts Soon",
+            `
+              Hello ${booking.user.name},<br><br>
+              This is a friendly reminder that your booking starts in less than 6 hours.<br><br>
+              <b>Facility:</b> ${booking.facility.name}<br>
+              <b>Start:</b> ${formattedStart}<br>
+              <b>End:</b> ${formattedEnd}<br><br>
+              Thank you for using our service!
+            `,
+            true
+          );
+          console.log(`✅ Reminder email sent for booking: ${booking._id}`);
+        } catch (err) {
+          console.error(`❌ Failed to send reminder for ${booking._id}:`, err.message);
+        }
+      }
+
+      // Step 3️⃣: Mark completed bookings
+      if (isCompleted) {
+        await BookingHistory.findOneAndUpdate(
+          {
+            $or: [
+              { bookingId: booking._id },
+              {
+                bookingId: { $exists: false },
+                clientId: booking.clientId,
+                facility: booking.facility,
+                user: booking.user,
+                startDate: booking.startDate,
+                endDate: booking.endDate,
+              },
+            ],
+          },
+          {
+            $set: {
+              status: "completed",
+              deletedAt: nowKarachi.toDate(),
+              bookingId: booking._id,
+            },
+          }
+        );
+
         await Booking.deleteOne({ _id: booking._id });
 
-        console.log(`Booking ID: ${booking._id} has been deleted.`.bgRed.white);
+        console.log(`✅ Completed & moved to history: ${booking._id}`.bgRed.white);
+      } else {
+        console.log(`📦 Booking still pending: ${booking._id}`.green);
       }
     }
+
+    // Step 4️⃣: Backfill bookingId for older histories
+    const historiesWithoutId = await BookingHistory.find({ bookingId: { $exists: false } });
+    for (const hist of historiesWithoutId) {
+      const match = await Booking.findOne({
+        clientId: hist.clientId,
+        facility: hist.facility,
+        user: hist.user,
+        startDate: hist.startDate,
+        endDate: hist.endDate,
+      });
+
+      if (match) {
+        await BookingHistory.updateOne(
+          { _id: hist._id },
+          { $set: { bookingId: match._id } }
+        );
+        console.log(`🔄 Backfilled bookingId for history: ${hist._id}`);
+      }
+    }
+
+    console.log("🎯 Auto cleanup job finished successfully.".bgBlue.white);
   } catch (error) {
-    console.error("Error during booking cleanup:", error);
+    console.error("❌ Error during booking cleanup:", error);
   }
 };
+
+
 const getBookingHistoryController = asyncHandler(async (req, res) => {
   // Fetch all booking history``
   const bookingHistory = await BookingHistory.find()
@@ -1120,6 +1381,7 @@ const getBookingLogsController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiResponse(200, logs, "Booking logs fetched"));
 });
+
 export {
   testEmailTemplateController,
   getBookingLogsController,

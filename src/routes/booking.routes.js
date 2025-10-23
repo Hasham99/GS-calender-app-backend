@@ -22,9 +22,11 @@ router.route("/:id").put(verifyJWT, updateBookingController);
 router.route("/").get(verifyJWT,getBookingsController);
 
 // Get Booking History
-router.route("/booking-history").get(verifyJWT,getBookingHistoryController);
+// router.route("/booking-history").get(verifyJWT,getBookingHistoryController);
+router.route("/booking-history").get(getBookingHistoryController);
 
-router.route("/booking-history/:id").get(verifyJWT,getBookingHistoryByUserIdController);
+// router.route("/booking-history/:id").get(verifyJWT,getBookingHistoryByUserIdController);
+router.route("/booking-history/:id").get(getBookingHistoryByUserIdController);
 
 // Manual endpoint to trigger cleanup
 router.route("/cleanup").get(autoCleanUpBookingsController);
