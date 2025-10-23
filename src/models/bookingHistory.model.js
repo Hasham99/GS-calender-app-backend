@@ -9,6 +9,10 @@ const bookingHistorySchema = new mongoose.Schema(
         startDate: { type: Date, required: true },
         endDate: { type: Date, required: true },
         status: { type: String, enum: [ "pending", "completed"], default: "pending" },
+        reminderSent: {
+        type: Boolean,
+        default: false,
+        },
         conditionsAccepted: { type: Boolean, required: true },
         deletedAt: { type: Date,default: null, required: false }, // Timestamp when the booking was moved to history
     },

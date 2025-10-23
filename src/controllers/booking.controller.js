@@ -1123,7 +1123,7 @@ const autoCleanUpBookings = async () => {
       `🚀 Running auto-cleanup at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.black
     );
 
-    // Fetch all active bookings
+    // Fetch all active (non-deleted) bookings
     const bookings = await Booking.find({})
       .populate("user facility")
       .lean();
@@ -1138,7 +1138,7 @@ const autoCleanUpBookings = async () => {
         startDate.diff(nowKarachi, "hours") <= 6;
 
       // Step 1️⃣: Ensure a history record exists
-      const existingHistory = await BookingHistory.findOne({
+      let existingHistory = await BookingHistory.findOne({
         $or: [
           { bookingId: booking._id },
           {
@@ -1153,7 +1153,7 @@ const autoCleanUpBookings = async () => {
       });
 
       if (!existingHistory) {
-        await BookingHistory.create({
+        existingHistory = await BookingHistory.create({
           bookingId: booking._id,
           clientId: booking.clientId,
           facility: booking.facility,
@@ -1161,7 +1161,9 @@ const autoCleanUpBookings = async () => {
           startDate: booking.startDate,
           endDate: booking.endDate,
           status: "pending",
+          reminderSent: false,
           conditionsAccepted: booking.conditionsAccepted,
+          deletedAt: null,
         });
 
         console.log(`🟡 Added missing booking to history: ${booking._id}`);
@@ -1169,6 +1171,19 @@ const autoCleanUpBookings = async () => {
 
       // Step 2️⃣: Send reminder email if within 6 hours before start
       if (isWithin6Hours) {
+        // 🛑 Skip if reminder already sent
+        if (existingHistory?.reminderSent) {
+          console.log(`⏩ Reminder already sent for booking: ${booking._id}`);
+          continue;
+        }
+
+        // 🛑 Double-check booking still exists (not deleted by another cleanup)
+        const stillExists = await Booking.exists({ _id: booking._id });
+        if (!stillExists) {
+          console.log(`🧹 Booking deleted already, skipping reminder: ${booking._id}`);
+          continue;
+        }
+
         console.log(`📧 Sending reminder email for booking: ${booking._id}`);
 
         const formattedStart = startDate.format("YYYY-MM-DD hh:mm A");
@@ -1188,6 +1203,13 @@ const autoCleanUpBookings = async () => {
             `,
             true
           );
+
+          // ✅ Mark reminder as sent
+          await BookingHistory.updateOne(
+            { _id: existingHistory._id },
+            { $set: { reminderSent: true } }
+          );
+
           console.log(`✅ Reminder email sent for booking: ${booking._id}`);
         } catch (err) {
           console.error(`❌ Failed to send reminder for ${booking._id}:`, err.message);
@@ -1227,7 +1249,7 @@ const autoCleanUpBookings = async () => {
       }
     }
 
-    // Step 4️⃣: Backfill bookingId for older histories
+    // Step 4️⃣: Backfill missing bookingIds
     const historiesWithoutId = await BookingHistory.find({ bookingId: { $exists: false } });
     for (const hist of historiesWithoutId) {
       const match = await Booking.findOne({
@@ -1252,6 +1274,8 @@ const autoCleanUpBookings = async () => {
     console.error("❌ Error during booking cleanup:", error);
   }
 };
+
+
 
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
