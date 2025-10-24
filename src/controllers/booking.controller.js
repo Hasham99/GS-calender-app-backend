@@ -966,7 +966,7 @@ const deleteBookingController = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new apiResponse(200, {}, "Booking deleted and moved to history successfully"));
+    .json(new apiResponse(200, {}, "Booking deleted successfully"));
 });
 
 const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
