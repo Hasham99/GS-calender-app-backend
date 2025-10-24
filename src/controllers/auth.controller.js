@@ -16,6 +16,7 @@ dotenv.config();
 //     expiresIn: process.env.ACCESS_TOKEN_EXPIRY,
 //   });
 // };
+
 // Generate JWT Token function
 const generateToken = (id, type, role) => {
   return jwt.sign({ id, type, role }, process.env.ACCESS_TOKEN_SECRET, {
@@ -834,6 +835,25 @@ export const deleteUserByIdController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiResponse(200, user, "User deleted successfully"));
 });
+
+
+export const logoutController = asyncHandler(async (req, res) => {
+  // Clear the refresh token cookie
+  res.clearCookie("refreshToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "Strict",
+  });
+
+  // Optionally, clear access token if you store it in cookies (not required in your case)
+  // res.clearCookie("accessToken");
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, null, "Logged out successfully"));
+});
+
+
 // export const deleteUserByIdController = asyncHandler(async (req, res) => {
 //   const { id, clientId } = req.params; // Get both user and clientId from URL params
 

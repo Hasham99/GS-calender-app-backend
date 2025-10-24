@@ -936,24 +936,39 @@ const deleteBookingController = asyncHandler(async (req, res) => {
   if (!booking) {
     throw new apiError(404, "Booking not found");
   }
+  // 2️⃣ Save it to BookingHistory before deleting
+  await BookingHistory.create({
+    bookingId: booking._id,
+    clientId: booking.clientId,
+    facility: booking.facility,
+    user: booking.user,
+    startDate: booking.startDate,
+    endDate: booking.endDate,
+    status: "deleted",
+    reminderSent: booking.reminderSent || false,
+    conditionsAccepted: booking.conditionsAccepted,
+    deletedAt: new Date(),
+  });
+
 
   await booking.deleteOne();
   // Clear the scheduled reminder timeout
-  const reminderTimeouts = req.app.get("bookingReminderTimeouts");
-  const timeoutId = reminderTimeouts.get(id);
-  if (timeoutId) {
-    clearTimeout(timeoutId);
-    reminderTimeouts.delete(id);
-    console.log(`Cancelled reminder email timeout for booking ${id}`);
-  }
+  // const reminderTimeouts = req.app.get("bookingReminderTimeouts");
+  // const timeoutId = reminderTimeouts.get(id);
+  // if (timeoutId) {
+  //   clearTimeout(timeoutId);
+  //   reminderTimeouts.delete(id);
+  //   console.log(`Cancelled reminder email timeout for booking ${id}`);
+  // }
 
   const io = req.app.get("io");
   io.emit("booking_deleted", { id });
 
   return res
     .status(200)
-    .json(new apiResponse(200, {}, "Booking deleted successfully"));
+    .json(new apiResponse(200, {}, "Booking deleted and moved to history successfully"));
 });
+
 const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
   await autoCleanUpBookings(); // Call the shared logic
   return res
