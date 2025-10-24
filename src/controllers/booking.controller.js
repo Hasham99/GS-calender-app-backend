@@ -929,7 +929,7 @@ const updateBookingController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiResponse(200, updatedBooking, "Booking updated successfully"));
 });
-const deleteBookingController = asyncHandler(async (req, res) => {
+const deleteBookingController24Oct = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const booking = await Booking.findById(id);
@@ -968,6 +968,66 @@ const deleteBookingController = asyncHandler(async (req, res) => {
     .status(200)
     .json(new apiResponse(200, {}, "Booking deleted successfully"));
 });
+
+const deleteBookingController = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const booking = await Booking.findById(id);
+  if (!booking) {
+    throw new apiError(404, "Booking not found");
+  }
+
+  // 🕵️ Find existing booking history entry
+  let history = await BookingHistory.findOne({
+    $or: [
+      { bookingId: booking._id },
+      {
+        bookingId: { $exists: false },
+        clientId: booking.clientId,
+        facility: booking.facility,
+        user: booking.user,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+      },
+    ],
+  });
+
+  if (history) {
+    // 🟡 Update status to deleted
+    history.status = "deleted";
+    history.deletedAt = new Date();
+    history.bookingId = booking._id;
+    await history.save();
+    console.log(`🟠 Updated booking history status to deleted: ${booking._id}`);
+  } else {
+    // 🔵 Create new history record if none exists
+    await BookingHistory.create({
+      bookingId: booking._id,
+      clientId: booking.clientId,
+      facility: booking.facility,
+      user: booking.user,
+      startDate: booking.startDate,
+      endDate: booking.endDate,
+      status: "deleted",
+      reminderSent: booking.reminderSent || false,
+      conditionsAccepted: booking.conditionsAccepted,
+      deletedAt: new Date(),
+    });
+    console.log(`🔵 Created new deleted history record for: ${booking._id}`);
+  }
+
+  // 🗑️ Delete booking from main collection
+  await booking.deleteOne();
+
+  // 🧠 Emit socket event
+  const io = req.app.get("io");
+  io.emit("booking_deleted", { id });
+
+  return res
+    .status(200)
+    .json(new apiResponse(200, {}, "Booking deleted successfully"));
+});
+
 
 const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
   await autoCleanUpBookings(); // Call the shared logic
