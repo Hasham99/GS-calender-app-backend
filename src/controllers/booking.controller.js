@@ -1190,15 +1190,174 @@ const autoCleanUpBookingsController = asyncHandler(async (req, res) => {
 //   }
 // };
 
+// const autoCleanUpBookings = async () => {
+//   try {
+//     const nowKarachi = moment().tz("Asia/Karachi");
+
+//     console.log(
+//       `🚀 Running auto-cleanup at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.black
+//     );
+
+//     // Fetch all active (non-deleted) bookings
+//     const bookings = await Booking.find({})
+//       .populate("user facility")
+//       .lean();
+
+//     for (const booking of bookings) {
+//       const startDate = moment(booking.startDate).tz("Asia/Karachi");
+//       const endDate = moment(booking.endDate).tz("Asia/Karachi");
+
+//       const isCompleted = endDate.isSameOrBefore(nowKarachi);
+//       const isWithin6Hours =
+//         startDate.isAfter(nowKarachi) &&
+//         startDate.diff(nowKarachi, "hours") <= 6;
+
+//       // Step 1️⃣: Ensure a history record exists
+//       let existingHistory = await BookingHistory.findOne({
+//         $or: [
+//           { bookingId: booking._id },
+//           {
+//             bookingId: { $exists: false },
+//             clientId: booking.clientId,
+//             facility: booking.facility,
+//             user: booking.user,
+//             startDate: booking.startDate,
+//             endDate: booking.endDate,
+//           },
+//         ],
+//       });
+
+//       if (!existingHistory) {
+//         existingHistory = await BookingHistory.create({
+//           bookingId: booking._id,
+//           clientId: booking.clientId,
+//           facility: booking.facility,
+//           user: booking.user,
+//           startDate: booking.startDate,
+//           endDate: booking.endDate,
+//           status: "pending",
+//           reminderSent: false,
+//           conditionsAccepted: booking.conditionsAccepted,
+//           deletedAt: null,
+//         });
+
+//         console.log(`🟡 Added missing booking to history: ${booking._id}`);
+//       }
+
+//       // Step 2️⃣: Send reminder email if within 6 hours before start
+//       if (isWithin6Hours) {
+//         // 🛑 Skip if reminder already sent
+//         if (existingHistory?.reminderSent) {
+//           console.log(`⏩ Reminder already sent for booking: ${booking._id}`);
+//           continue;
+//         }
+
+//         // 🛑 Double-check booking still exists (not deleted by another cleanup)
+//         const stillExists = await Booking.exists({ _id: booking._id });
+//         if (!stillExists) {
+//           console.log(`🧹 Booking deleted already, skipping reminder: ${booking._id}`);
+//           continue;
+//         }
+
+//         console.log(`📧 Sending reminder email for booking: ${booking._id}`);
+
+//         const formattedStart = startDate.format("YYYY-MM-DD hh:mm A");
+//         const formattedEnd = endDate.format("YYYY-MM-DD hh:mm A");
+
+//         try {
+//           await sendEmail(
+//             booking.user.email,
+//             "Booking Reminder - Starts Soon",
+//             `
+//               Hello ${booking.user.name},<br><br>
+//               This is a friendly reminder that your booking starts in less than 6 hours.<br><br>
+//               <b>Facility:</b> ${booking.facility.name}<br>
+//               <b>Start:</b> ${formattedStart}<br>
+//               <b>End:</b> ${formattedEnd}<br><br>
+//               Thank you for using our service!
+//             `,
+//             true
+//           );
+
+//           // ✅ Mark reminder as sent
+//           await BookingHistory.updateOne(
+//             { _id: existingHistory._id },
+//             { $set: { reminderSent: true } }
+//           );
+
+//           console.log(`✅ Reminder email sent for booking: ${booking._id}`);
+//         } catch (err) {
+//           console.error(`❌ Failed to send reminder for ${booking._id}:`, err.message);
+//         }
+//       }
+
+//       // Step 3️⃣: Mark completed bookings
+//       if (isCompleted) {
+//         await BookingHistory.findOneAndUpdate(
+//           {
+//             $or: [
+//               { bookingId: booking._id },
+//               {
+//                 bookingId: { $exists: false },
+//                 clientId: booking.clientId,
+//                 facility: booking.facility,
+//                 user: booking.user,
+//                 startDate: booking.startDate,
+//                 endDate: booking.endDate,
+//               },
+//             ],
+//           },
+//           {
+//             $set: {
+//               status: "completed",
+//               deletedAt: nowKarachi.toDate(),
+//               bookingId: booking._id,
+//             },
+//           }
+//         );
+
+//         await Booking.deleteOne({ _id: booking._id });
+
+//         console.log(`✅ Completed & moved to history: ${booking._id}`.bgRed.white);
+//       } else {
+//         console.log(`📦 Booking still pending: ${booking._id}`.green);
+//       }
+//     }
+
+//     // Step 4️⃣: Backfill missing bookingIds
+//     const historiesWithoutId = await BookingHistory.find({ bookingId: { $exists: false } });
+//     for (const hist of historiesWithoutId) {
+//       const match = await Booking.findOne({
+//         clientId: hist.clientId,
+//         facility: hist.facility,
+//         user: hist.user,
+//         startDate: hist.startDate,
+//         endDate: hist.endDate,
+//       });
+
+//       if (match) {
+//         await BookingHistory.updateOne(
+//           { _id: hist._id },
+//           { $set: { bookingId: match._id } }
+//         );
+//         console.log(`🔄 Backfilled bookingId for history: ${hist._id}`);
+//       }
+//     }
+
+//     console.log("🎯 Auto cleanup job finished successfully.".bgBlue.white);
+//   } catch (error) {
+//     console.error("❌ Error during booking cleanup:", error);
+//   }
+// };
+
 const autoCleanUpBookings = async () => {
   try {
     const nowKarachi = moment().tz("Asia/Karachi");
-
     console.log(
       `🚀 Running auto-cleanup at (Karachi Time): ${nowKarachi.format("YYYY-MM-DD HH:mm:ss")}`.bgYellow.black
     );
 
-    // Fetch all active (non-deleted) bookings
+    // 1️⃣ Fetch all active (non-deleted) bookings
     const bookings = await Booking.find({})
       .populate("user facility")
       .lean();
@@ -1212,7 +1371,7 @@ const autoCleanUpBookings = async () => {
         startDate.isAfter(nowKarachi) &&
         startDate.diff(nowKarachi, "hours") <= 6;
 
-      // Step 1️⃣: Ensure a history record exists
+      // 2️⃣ Ensure a history record exists
       let existingHistory = await BookingHistory.findOne({
         $or: [
           { bookingId: booking._id },
@@ -1244,23 +1403,8 @@ const autoCleanUpBookings = async () => {
         console.log(`🟡 Added missing booking to history: ${booking._id}`);
       }
 
-      // Step 2️⃣: Send reminder email if within 6 hours before start
-      if (isWithin6Hours) {
-        // 🛑 Skip if reminder already sent
-        if (existingHistory?.reminderSent) {
-          console.log(`⏩ Reminder already sent for booking: ${booking._id}`);
-          continue;
-        }
-
-        // 🛑 Double-check booking still exists (not deleted by another cleanup)
-        const stillExists = await Booking.exists({ _id: booking._id });
-        if (!stillExists) {
-          console.log(`🧹 Booking deleted already, skipping reminder: ${booking._id}`);
-          continue;
-        }
-
-        console.log(`📧 Sending reminder email for booking: ${booking._id}`);
-
+      // 3️⃣ Send reminder email if within 6 hours before start
+      if (isWithin6Hours && !existingHistory.reminderSent) {
         const formattedStart = startDate.format("YYYY-MM-DD hh:mm A");
         const formattedEnd = endDate.format("YYYY-MM-DD hh:mm A");
 
@@ -1279,7 +1423,6 @@ const autoCleanUpBookings = async () => {
             true
           );
 
-          // ✅ Mark reminder as sent
           await BookingHistory.updateOne(
             { _id: existingHistory._id },
             { $set: { reminderSent: true } }
@@ -1291,7 +1434,7 @@ const autoCleanUpBookings = async () => {
         }
       }
 
-      // Step 3️⃣: Mark completed bookings
+      // 4️⃣ Mark completed bookings and remove them from Booking collection
       if (isCompleted) {
         await BookingHistory.findOneAndUpdate(
           {
@@ -1318,13 +1461,13 @@ const autoCleanUpBookings = async () => {
 
         await Booking.deleteOne({ _id: booking._id });
 
-        console.log(`✅ Completed & moved to history: ${booking._id}`.bgRed.white);
+        console.log(`✅ Completed & removed booking: ${booking._id}`.bgRed.white);
       } else {
         console.log(`📦 Booking still pending: ${booking._id}`.green);
       }
     }
 
-    // Step 4️⃣: Backfill missing bookingIds
+    // 5️⃣ Backfill missing bookingIds in BookingHistory
     const historiesWithoutId = await BookingHistory.find({ bookingId: { $exists: false } });
     for (const hist of historiesWithoutId) {
       const match = await Booking.findOne({
@@ -1344,12 +1487,30 @@ const autoCleanUpBookings = async () => {
       }
     }
 
+    // 6️⃣ NEW FEATURE: Update pending histories whose endDate has passed
+    const pendingHistories = await BookingHistory.find({ status: "pending" }).lean();
+
+    for (const hist of pendingHistories) {
+      const endDate = moment(hist.endDate).tz("Asia/Karachi");
+      if (endDate.isBefore(nowKarachi)) {
+        await BookingHistory.updateOne(
+          { _id: hist._id },
+          {
+            $set: {
+              status: "completed",
+              deletedAt: nowKarachi.toDate(),
+            },
+          }
+        );
+        console.log(`🕓 Updated overdue pending history to completed: ${hist._id}`.yellow);
+      }
+    }
+
     console.log("🎯 Auto cleanup job finished successfully.".bgBlue.white);
   } catch (error) {
     console.error("❌ Error during booking cleanup:", error);
   }
 };
-
 
 
 
