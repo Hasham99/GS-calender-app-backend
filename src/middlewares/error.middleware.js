@@ -1,9 +1,9 @@
-import { Logger } from "winston";
 import { apiError } from "../utils/apiError.js";
+import { logger } from "../utils/logger.js"; // Import the logger
 const errorHandler = (err, req, res, next) => {
 
     // Log the error to the file
-    Logger.error(err.message, { 
+    logger.error(err.message, { 
         statusCode: err.statusCode,
         stack: err.stack,
         url: req.originalUrl,

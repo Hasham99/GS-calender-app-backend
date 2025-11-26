@@ -8,6 +8,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/emailService.js";
 import dotenv from "dotenv";
 import { Client } from "../models/client.model.js";
+import { logger } from "../utils/logger.js";
 dotenv.config();
 
 // Function to generate JWT token
@@ -681,6 +682,8 @@ export const loginController = asyncHandler(async (req, res) => {
   const loggedInUser = await User.findById(user._id)
     .select("-password")
     .populate("facilities", "_id name description");
+  // Log success to file
+  logger.info(`User logged in successfully: ${user.email}`);
 
   res
     .status(200)
