@@ -2,6 +2,8 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import fs from "fs"; // Import fs
+import path from "path"; // Import path
 import helmet from "helmet";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -20,24 +22,33 @@ const isProduction = process.env.NODE_ENV === "production";
 app.use(helmet());
 
 // 🌍 CORS configuration
-const allowedOrigins = [
-  "https://gs-bookable-cc.web.app", // production frontend
-  "http://localhost:5173",          // local React/Vite frontend
-  "http://localhost:4775"           // local backend testing
-];
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.warn(`🚨 Blocked CORS request from untrusted origin: ${origin}`);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-  })
-);
+// const allowedOrigins = [
+//   "https://gs-bookable-cc.web.app", // production frontend
+//   "http://localhost:5173",          // local React/Vite frontend
+//   "http://localhost:4775"           // local backend testing
+
+// ];
+
+// allow origin all
+
+
+
+
+
+
+// app.use(
+//   cors({
+//     origin: (origin, callback) => {
+//       if (!origin || allowedOrigins.includes(origin)) {
+//         callback(null, true);
+//       } else {
+//         console.warn(`🚨 Blocked CORS request from untrusted origin: ${origin}`);
+//         callback(new Error("Not allowed by CORS"));
+//       }
+//     },
+//     credentials: true,
+//   })
+// );
 
 // Middleware configuration
 // app.use(
@@ -48,18 +59,41 @@ app.use(
 //     })
 // );
 
-// app.use(
-//   cors({
-//     origin: "*", // Temporarily allow all origins
-//     credentials: true,
-//   })
-// );
+app.use(
+  cors({
+    origin: "*", // Temporarily allow all origins
+    credentials: true,
+  })
+);
+
+// save error and success logs to file
+
+
 
 app.use(express.json({ limit: "16kb" }));
 app.use(express.urlencoded({ extended: true, limit: "16kb" }));
 app.use(express.static("public"));
 app.use(cookieParser());
+
+
+// 📝 LOGGING CONFIGURATION
+// Ensure logs directory exists
+const logDirectory = path.join(process.cwd(), "logs");
+if (!fs.existsSync(logDirectory)) {
+  fs.mkdirSync(logDirectory);
+}
+
+// Create a write stream (in append mode)
+const accessLogStream = fs.createWriteStream(path.join(logDirectory, "access.log"), {
+  flags: "a",
+});
+
+// Save logs to file
+app.use(morgan("combined", { stream: accessLogStream }));
+// Keep logging to console in dev mode
 app.use(morgan("dev"));
+
+
 
 // 🚫 Block malicious WP/PHP scan requests
 app.use((req, res, next) => {

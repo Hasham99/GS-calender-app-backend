@@ -1513,6 +1513,105 @@ const autoCleanUpBookings = async () => {
 };
 
 
+export const findBrokenUserHistories = asyncHandler(async (req, res) => {
+  try {
+    // 1️⃣ Find all histories where user field is null or missing
+    const historiesWithNullOrMissingUser = await BookingHistory.find({
+      $or: [{ user: null }, { user: { $exists: false } }],
+    });
+
+    // 2️⃣ Also find histories with a user reference that no longer exists
+    const allHistoriesWithUser = await BookingHistory.find({
+      user: { $ne: null },
+    }).select("user");
+
+    const userIds = allHistoriesWithUser.map((h) => h.user);
+    const existingUsers = await User.find({ _id: { $in: userIds } }).select("_id");
+    const existingUserIds = existingUsers.map((u) => u._id.toString());
+
+    const historiesWithDeletedUser = allHistoriesWithUser.filter(
+      (h) => !existingUserIds.includes(h.user.toString())
+    );
+
+    // 3️⃣ Combine all problem histories
+    const allBrokenHistories = [
+      ...historiesWithNullOrMissingUser,
+      ...historiesWithDeletedUser,
+    ];
+
+    // 4️⃣ Response
+    const count = allBrokenHistories.length;
+
+    return res.status(200).json({
+      success: true,
+      count,
+      message: `${count} booking history records found with invalid or missing user references`,
+      data: allBrokenHistories,
+    });
+  } catch (error) {
+    console.error("❌ Error finding broken user histories:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while fetching broken user histories",
+      error: error.message,
+    });
+  }
+});
+
+
+export const deleteBrokenUserHistories = asyncHandler(async (req, res) => {
+  try {
+    console.log("🧹 Running cleanup for booking histories with invalid user references...");
+
+    // 1️⃣ Find all histories where user field is null or missing
+    const historiesWithNullOrMissingUser = await BookingHistory.find({
+      $or: [{ user: null }, { user: { $exists: false } }],
+    });
+
+    // 2️⃣ Also find histories with a user reference that no longer exists
+    const allHistoriesWithUser = await BookingHistory.find({
+      user: { $ne: null },
+    }).select("user");
+
+    const userIds = allHistoriesWithUser.map((h) => h.user);
+    const existingUsers = await User.find({ _id: { $in: userIds } }).select("_id");
+    const existingUserIds = existingUsers.map((u) => u._id.toString());
+
+    const historiesWithDeletedUser = allHistoriesWithUser.filter(
+      (h) => !existingUserIds.includes(h.user.toString())
+    );
+
+    // 3️⃣ Combine all broken histories
+    const allBrokenHistories = [
+      ...historiesWithNullOrMissingUser,
+      ...historiesWithDeletedUser,
+    ];
+
+    const brokenIds = allBrokenHistories.map((h) => h._id);
+
+    // 4️⃣ Delete them from database
+    if (brokenIds.length > 0) {
+      const result = await BookingHistory.deleteMany({ _id: { $in: brokenIds } });
+      console.log(`🗑️ Deleted ${result.deletedCount} invalid booking histories`);
+    } else {
+      console.log("✅ No invalid booking histories found to delete.");
+    }
+
+    return res.status(200).json({
+      success: true,
+      deletedCount: brokenIds.length,
+      message: `${brokenIds.length} invalid booking histories deleted successfully.`,
+    });
+  } catch (error) {
+    console.error("❌ Error deleting broken user histories:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while deleting broken user histories",
+      error: error.message,
+    });
+  }
+});
+
 
 const getBookingHistoryController = asyncHandler(async (req, res) => {
   // Fetch all booking history``

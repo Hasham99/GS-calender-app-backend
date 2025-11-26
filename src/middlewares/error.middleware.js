@@ -1,6 +1,15 @@
 import { apiError } from "../utils/apiError.js";
-
 const errorHandler = (err, req, res, next) => {
+
+    // Log the error to the file
+    logger.error(err.message, { 
+        statusCode: err.statusCode,
+        stack: err.stack,
+        url: req.originalUrl,
+        method: req.method,
+        ip: req.ip
+    });
+
     // Check if the error is an instance of apiError
     if (err instanceof apiError) {
         return res.status(err.statusCode).json({
